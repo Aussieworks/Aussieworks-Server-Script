@@ -148,12 +148,11 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
         if one ~= nil then
             local sid = ""
             local name = ""
-            local wui = ""
             if perms >= PermAdmin then
                 local playedata = nosave["playerdata"][tostring(one)]
                 sid = playedata["steam_id"]    
                 name = playedata["name"]
-                server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nUI: "..wui, user_peer_id)
+                server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid), user_peer_id)
             end
         else
 		    local pid = ""
