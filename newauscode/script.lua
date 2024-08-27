@@ -13,17 +13,12 @@ adminlist = {}
 
 -- list that doesnt save
 nosave = {playerdata={}}
-
--- settings
-antisteal = {}
-ui = {}
-
+last_ms = 0
+last_tps = 0
 -- initalising the player
 function playerint(steam_id, peer_id)
     local pn =  server.getPlayerName(peer_id)
-    nosave["playerdata"][tostring(peer_id)] = {steam_id=tostring(steam_id), name=tostring(pn)}
-    antisteal[steam_id] = true
-    ui[steam_id] = true
+    nosave["playerdata"][tostring(peer_id)] = {steam_id=tostring(steam_id), name=tostring(pn), ui=true, as=true}
     for _, sid in pairs(adminlist) do
         if tostring(sid[1]) == tostring(steam_id) then
             nosave["playerdata"][tostring(peer_id)]["perms"] = sid[2]
@@ -47,11 +42,11 @@ function onPlayerJoin(steam_id, name, peer_id, admin, auth)
 	server.announce("[Server]", name .. " joined the game")
     server.removeAuth(peer_id)
     playerint(steam_id, peer_id)
-    if antisteal[steam_id] == nil then
-        antisteal[steam_id] = true
+    if nosave["playerdata"][tostring(peer_id)]["as"] == nil then
+        nosave["playerdata"][tostring(peer_id)]["as"] = true
     end
-    if ui[steam_id] == nil then
-        ui[steam_id] = true
+    if nosave["playerdata"][tostring(peer_id)]["ui"] == nil then
+        nosave["playerdata"][tostring(peer_id)]["ui"] = true
     end
 end
 
@@ -70,10 +65,9 @@ end
 
 -- vehicle spawned
 function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
-    local steam_id = getsteam_id(peer_id)
-    if antisteal[steam_id] == true then
+    if nosave["playerdata"][tostring(peer_id)]["as"] == true then
         server.setVehicleEditable(vehicle_id, false)
-    elseif antisteal[steam_id] == false then
+    elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
         server.setVehicleEditable(vehicle_id, true)
     end
     if peer_id ~= -1 and peer_id ~= nil then
@@ -127,6 +121,36 @@ function getsteam_id(peer_id)
     end
 end
 
+-- tps
+TPS=0
+TPSList={}
+TPSDivisor=0
+TpsHistoryLength=30
+LastMS=server.getTimeMillisec()
+
+for X =1,TpsHistoryLength,1 do
+    TPSDivisor=TPSDivisor + X
+    table.insert(TPSList,0)
+end
+TPSDivisor=1/TPSDivisor
+
+function ComputeTPS()
+    local CurrentTPS=(1000 / (server.getTimeMillisec() - LastMS)) * 5
+
+    for X,Y in pairs(TPSList) do
+        TPSList[X]=TPSList[X + 1]
+    end
+    TPSList[TpsHistoryLength]=CurrentTPS
+
+    TPS=0
+    for X =1,TpsHistoryLength,1 do
+        TPS=TPS + (TPSList[X] * (TPSDivisor * X))
+    end
+
+    TPS=math.floor(TPS * 10) / 10
+    LastMS=server.getTimeMillisec()
+end 
+
 -- commands
 function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command, one, two, three, four, five)
     local perms = nosave["playerdata"][tostring(user_peer_id)]["perms"]
@@ -148,11 +172,26 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
         if one ~= nil then
             local sid = ""
             local name = ""
+            local wui = ""
             if perms >= PermAdmin then
                 local playedata = nosave["playerdata"][tostring(one)]
                 sid = playedata["steam_id"]    
                 name = playedata["name"]
-                server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid), user_peer_id)
+                if playedata["ui"] == true then
+                    wui = "True"
+                elseif playedata["ui"] == false then
+                    wui = "False"
+                else
+                    wui = "Unknown"
+                end
+                if playedata["as"] == true then
+                    was = "True"
+                elseif playedata["as"] == false then
+                    was = "False"
+                else
+                    was = "Unknown"
+                end
+                server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nUI: "..wui.."\nAntisteal: "..was, user_peer_id)
             end
         else
 		    local pid = ""
@@ -280,36 +319,34 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
     -- anti steal command
     if (command:lower() == "?as") then
         local peer_id = user_peer_id
-        local steam_id = getsteam_id(peer_id)
         local worked = false
-        if antisteal[steam_id] == true then
-            antisteal[steam_id] = false
+        if nosave["playerdata"][tostring(peer_id)]["as"] == true then
+            nosave["playerdata"][tostring(peer_id)]["as"] = false
             server.notify(user_peer_id, "[Server]", "Anti-steal disabled", 6)
             worked = true
-        elseif antisteal[steam_id] == false then
-            antisteal[steam_id] = true
+        elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
+            nosave["playerdata"][tostring(peer_id)]["as"] = true
             server.notify(user_peer_id, "[Server]", "Anti-steal enabled", 5)
             worked = true
         end
         if worked ~= true then
-            antisteal[steam_id] = true
+            nosave["playerdata"][tostring(peer_id)]["as"] = true
             server.notify(user_peer_id, "[Server]", "Anti-steal enabled", 5)
         end
     elseif (command:lower() == "?antisteal") then
         local peer_id = user_peer_id
-        local steam_id = getsteam_id(peer_id)
         local worked = false
-        if antisteal[steam_id] == true then
-            antisteal[steam_id] = false
+        if nosave["playerdata"][tostring(peer_id)]["as"] == true then
+            nosave["playerdata"][tostring(peer_id)]["as"] = false
             server.notify(user_peer_id, "[Server]", "Anti-steal disabled", 6)
             worked = true
-        elseif antisteal[steam_id] == false then
-            antisteal[steam_id] = true
+        elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
+            nosave["playerdata"][tostring(peer_id)]["as"] = true
             server.notify(user_peer_id, "[Server]", "Anti-steal enabled", 5)
             worked = true
         end
         if worked ~= true then
-            antisteal[steam_id] = true
+            nosave["playerdata"][tostring(peer_id)]["as"] = true
             server.notify(user_peer_id, "[Server]", "Anti-steal enabled", 5)
         end
     end
@@ -317,29 +354,38 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
     -- ui command
     if (command:lower() == "?ui") then
         local peer_id = user_peer_id
-        local steam_id = getsteam_id(peer_id)
         local worked = false
-        if ui[steam_id] == false then
-            ui[steam_id] = true
+        if nosave["playerdata"][tostring(peer_id)]["ui"] == false then
+            nosave["playerdata"][tostring(peer_id)]["ui"] = true
             server.notify(user_peer_id, "[WIP]", "UI enabled", 5)
             worked = true
-        elseif ui[steam_id] == true then
-            ui[steam_id] = false
+        elseif nosave["playerdata"][tostring(peer_id)]["ui"] == true then
+            nosave["playerdata"][tostring(peer_id)]["ui"] = false
             server.notify(user_peer_id, "[WIP]", "UI disabled", 6)
             worked = true
         end
         if worked ~= true then
-            ui[steam_id] = true
+            nosave["playerdata"][tostring(peer_id)]["ui"] = true
             server.notify(user_peer_id, "[WIP]", "UI enabled", 5)
         end
     end
     
-    -- ui function
+    -- ui function 
     function onTick()
         local ut = formatUptime(uptimeTicks, tickDuration)
-        local peer_id = user_peer_id
-        local steam_id = getsteam_id(peer_id)
-        server.setPopupScreen(user_peer_id, 1, "uptime", ui[steam_id], "-=Uptime=-".."\n"..ut, -0.9, 0.9)
+        ComputeTPS()
+        for _,X in pairs(server.getPlayers()) do
+            local peer_id=X.id 
+            local pas = ""
+            if nosave["playerdata"][tostring(peer_id)]["as"] == true then
+                pas = "True"
+            elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
+                pas = "False"
+            else
+                pas = "Unknown"
+            end
+            server.setPopupScreen(peer_id, 1, "ui", nosave["playerdata"][tostring(peer_id)]["ui"], "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=TPS=-".."\n"..TPS, -0.905, 0.85)
+        end
     end
 
     -- auth command
