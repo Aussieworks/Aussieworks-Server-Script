@@ -8,8 +8,8 @@ PermMod = 2
 PermAdmin = 3
 PermOwner = 4
 
--- admin list formating is {{"steam_id,perm"}} seperated by , like this: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
-adminlist = {}
+-- admin list
+adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561199032157360",PermAdmin},{"76561198371768441",PermAdmin}}
 
 -- list that doesnt save
 nosave = {playerdata={}}
@@ -18,7 +18,7 @@ last_tps = 0
 -- initalising the player
 function playerint(steam_id, peer_id)
     local pn =  server.getPlayerName(peer_id)
-    nosave["playerdata"][tostring(peer_id)] = {steam_id=tostring(steam_id), name=tostring(pn), ui=true, as=true}
+    nosave["playerdata"][tostring(peer_id)] = {steam_id=tostring(steam_id), name=tostring(pn), ui=true, as=true, pvp=false}
     for _, sid in pairs(adminlist) do
         if tostring(sid[1]) == tostring(steam_id) then
             nosave["playerdata"][tostring(peer_id)]["perms"] = sid[2]
@@ -42,12 +42,6 @@ function onPlayerJoin(steam_id, name, peer_id, admin, auth)
 	server.announce("[Server]", name .. " joined the game")
     server.removeAuth(peer_id)
     playerint(steam_id, peer_id)
-    if nosave["playerdata"][tostring(peer_id)]["as"] == nil then
-        nosave["playerdata"][tostring(peer_id)]["as"] = true
-    end
-    if nosave["playerdata"][tostring(peer_id)]["ui"] == nil then
-        nosave["playerdata"][tostring(peer_id)]["ui"] = true
-    end
 end
 
 -- player leave
@@ -58,21 +52,31 @@ function onPlayerLeave(steam_id, name, peer_id, admin, auth)
         for group_id, GroupData in pairs(g_savedata["usercreations"]) do
             if GroupData["ownersteamid"] == ownersteamid then
                 vehiclespawned = true
-                server.despawnVehicleGroup(tonumber(group_id), true)          
+                server.despawnVehicleGroup(tonumber(group_id), true)
             end
         end
 end
 
 -- vehicle spawned
 function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
+    local pvp = ""
     if nosave["playerdata"][tostring(peer_id)]["as"] == true then
         server.setVehicleEditable(vehicle_id, false)
     elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
         server.setVehicleEditable(vehicle_id, true)
     end
+    if nosave["playerdata"][tostring(peer_id)]["pvp"] == true then
+        server.setVehicleInvulnerable(vehicle_id, false)
+        pvp = "true"
+    elseif nosave["playerdata"][tostring(peer_id)]["pvp"] == false then
+        server.setVehicleInvulnerable(vehicle_id, true)
+        pvp = "false"
+    end
+    local name = server.getPlayerName(peer_id)
+    server.setVehicleTooltip(vehicle_id, "Owner: "..name.." : "..peer_id.."\nPVP: "..pvp)
     if peer_id ~= -1 and peer_id ~= nil then
          if g_savedata["usercreations"][tostring(group_id)] == nil then
-            g_savedata["usercreations"][tostring(group_id)] = {OwnerID=peer_id, ownersteamid = getsteam_id(peer_id), Vehicleparts={}}
+            g_savedata["usercreations"][tostring(group_id)] = {OwnerID=peer_id, ownersteamid = getsteam_id(peer_id), Vehicleparts={}, vehicle_id=tostring(vehicle_id)}
          end
         g_savedata["usercreations"][tostring(group_id)]["Vehicleparts"][tostring(vehicle_id)] = 1     
     end
@@ -161,9 +165,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
     
     -- lists all the commands
     if (command:lower() == "?help") then
-        server. announce("[Server]", "-=General Commands=-".."\n| ?help| lists all commands".."\n| ?c      | clears all your spawned vehciles".."\n| ?disc | states our discord link".."\n| ?ut    | shows you the uptime of the server".."\n| ?as    | toggles your personal anti-steal".."\n| ?ui    | toggles your ui", user_peer_id)
+        server. announce("[Server]", "-=General Commands=-".."\n| ?help| lists all commands".."\n| ?c      | clears all your spawned vehciles".."\n| ?disc | states our discord link".."\n| ?ut    | shows you the uptime of the server".."\n| ?as    | toggles your personal anti-steal".."\n| ?ui    | toggles your ui".."\n| ?pvp | toggles your pvp", user_peer_id)
         if perms >= PermAdmin then
-            server. announce("[Server]", "-=Admin Commands=-".."\n| ?ca    | clears all vehciles".."\n| ?kick | kicks player with inputed id".."\n| ?ban | bans player with inputed id".."\n| ?pi     | player info lists the players name, id, and steam, id".."\n| ?pc    | clears vehciles of inputed players idS", user_peer_id)
+            server. announce("[Server]", "-=Admin Commands=-".."\n| ?ca    | clears all vehciles".."\n| ?kick | kicks player with inputed id".."\n| ?ban | bans player with inputed id".."\n| ?pi     | lists players, if inputed tells about player".."\n| ?pc    | clears vehciles of inputed players ids", user_peer_id)
         end
     end
 
@@ -173,6 +177,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
             local sid = ""
             local name = ""
             local wui = ""
+            local pvp = ""
             if perms >= PermAdmin then
                 local playedata = nosave["playerdata"][tostring(one)]
                 sid = playedata["steam_id"]    
@@ -191,7 +196,14 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
                 else
                     was = "Unknown"
                 end
-                server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nUI: "..wui.."\nAntisteal: "..was, user_peer_id)
+                if playedata["pvp"] == true then
+                    pvp = "True"
+                elseif playedata["pvp"] == false then
+                    pvp = "False"
+                else
+                    pvp = "Unknown"
+                end
+                server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nUI: "..wui.."\nAntisteal: "..was.."\nPVP: "..pvp, user_peer_id)
             end
         else
 		    local pid = ""
@@ -307,6 +319,55 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
         end
     end
 
+    -- pvp command
+    if (command:lower() == "?pvp") then
+        local peer_id = user_peer_id
+        local worked = false
+        local pvp
+        if nosave["playerdata"][tostring(peer_id)]["pvp"] == true then
+            nosave["playerdata"][tostring(peer_id)]["pvp"] = false
+            server.notify(user_peer_id, "[Server]", "PVP disabled", 6)
+            worked = true
+            pvp = "false"
+        elseif nosave["playerdata"][tostring(peer_id)]["pvp"] == false then
+            nosave["playerdata"][tostring(peer_id)]["pvp"] = true
+            server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
+            worked = true
+            pvp = "true"
+        end
+        if worked ~= true then
+            nosave["playerdata"][tostring(peer_id)]["pvp"] = true
+            server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
+        end
+        local ownersteamid = getsteam_id(user_peer_id)
+        local vehicle_id = nil
+        local name = server.getPlayerName(peer_id)
+        for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+            if GroupData["ownersteamid"] == ownersteamid then
+                vehicle_id = GroupData["vehicle_id"]
+                server.setVehicleTooltip(vehicle_id, "Owner: "..name.." : "..peer_id.."\nPVP: "..pvp)
+                if nosave["playerdata"][tostring(peer_id)]["pvp"] == true then
+                    server.setVehicleInvulnerable(vehicle_id, false)
+                elseif nosave["playerdata"][tostring(peer_id)]["pvp"] == false then
+                    server.setVehicleInvulnerable(vehicle_id, true)
+                end
+            end
+        end
+    end
+
+    -- repair vehicles
+    if (command:lower() == "?repair") then
+        local ownersteamid = getsteam_id(user_peer_id)
+        local vehicle_id = nil
+        for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+            if GroupData["ownersteamid"] == ownersteamid then
+                vehicle_id = GroupData["vehicle_id"]
+                server.resetVehicleState(vehicle_id)
+            end
+        end
+        server.notify(user_peer_id, "[Server]", "Your vehicle/vehicles has been repaired restocked", 5)
+    end
+
     -- uptime command
     if (command:lower() == "?ut") then
         local ut = formatUptime(uptimeTicks, tickDuration)
@@ -377,6 +438,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
         for _,X in pairs(server.getPlayers()) do
             local peer_id=X.id 
             local pas = ""
+            local pvp = ""
             if nosave["playerdata"][tostring(peer_id)]["as"] == true then
                 pas = "True"
             elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
@@ -384,7 +446,14 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
             else
                 pas = "Unknown"
             end
-            server.setPopupScreen(peer_id, 1, "ui", nosave["playerdata"][tostring(peer_id)]["ui"], "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=TPS=-".."\n"..TPS, -0.905, 0.85)
+            if nosave["playerdata"][tostring(peer_id)]["pvp"] == true then
+                pvp = "True"
+            elseif nosave["playerdata"][tostring(peer_id)]["pvp"] == false then
+                pvp = "False"
+            else
+                pvp = "Unknown"
+            end
+            server.setPopupScreen(peer_id, 1, "ui", nosave["playerdata"][tostring(peer_id)]["ui"], "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
         end
     end
 
@@ -432,11 +501,21 @@ if 1 == 1 then
             if step == 4 then
                 server.announce("[Tip]", "use ?as or ?antisteal to toggle your personal antisteal")
                 timer = 0
+            end
+            if step == 5 then
+                server.announce("[Tip]", "use ?pvp to toggle your personal pvp")
+                timer = 0
                 step = 1
             end
             step = step + 1
         end
     end
+end
+
+-- on scripts reloaded
+function onDestroy()
+    server.cleanVehicles()
+    server.announce("[Server]", "Vehicles despawned for script reload. Once scripts have reloaded you may respawn your vehciles")
 end
 
 -- on world load
