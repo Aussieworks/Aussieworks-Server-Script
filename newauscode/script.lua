@@ -8,8 +8,8 @@ PermMod = 2
 PermAdmin = 3
 PermOwner = 4
 
--- admin list formating is {{"steam_id,perm"}} seperated by , like this: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
-adminlist = {}
+-- admin list
+adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561199032157360",PermAdmin},{"76561198371768441",PermAdmin}}
 
 -- list that doesnt save
 nosave = {playerdata={}}
