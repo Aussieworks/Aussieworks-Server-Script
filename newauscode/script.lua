@@ -8,13 +8,14 @@ PermMod = 2
 PermAdmin = 3
 PermOwner = 4
 
--- admin list formating is {{"steam_id,perm"}} seperated by , like this: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
-adminlist = {}
+-- admin list
+adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561199032157360",PermAdmin},{"76561198371768441",PermAdmin}}
 
 -- list that doesnt save
 nosave = {playerdata={}}
 last_ms = 0
 last_tps = 0
+
 -- initalising the player
 function playerint(steam_id, peer_id)
     local pn =  server.getPlayerName(peer_id)
@@ -73,7 +74,8 @@ function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
         pvp = "false"
     end
     local name = server.getPlayerName(peer_id)
-    server.setVehicleTooltip(vehicle_id, "Owner: "..name.." : "..peer_id.."\nPVP: "..pvp)
+    server.setVehicleTooltip(vehicle_id, "Owner: "..peer_id.." | "..name.."\nPVP: "..pvp.." | Vehicle ID: "..vehicle_id)
+    server.announce("[Server]", peer_id.." | "..name.." spawned vehicle: "..vehicle_id.." Cost: "..string.format("%.0f",group_cost))
     if peer_id ~= -1 and peer_id ~= nil then
          if g_savedata["usercreations"][tostring(group_id)] == nil then
             g_savedata["usercreations"][tostring(group_id)] = {OwnerID=peer_id, ownersteamid = getsteam_id(peer_id), Vehicleparts={}, vehicle_id=tostring(vehicle_id)}
@@ -129,7 +131,7 @@ end
 TPS=0
 TPSList={}
 TPSDivisor=0
-TpsHistoryLength=30
+TpsHistoryLength=20
 LastMS=server.getTimeMillisec()
 
 for X =1,TpsHistoryLength,1 do
@@ -150,10 +152,11 @@ function ComputeTPS()
     for X =1,TpsHistoryLength,1 do
         TPS=TPS + (TPSList[X] * (TPSDivisor * X))
     end
-
-    TPS=math.floor(TPS * 10) / 10
+    
+    TPS=(math.floor(TPS * 10) / 10) / 5
     LastMS=server.getTimeMillisec()
-end 
+end
+
 
 -- commands
 function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command, one, two, three, four, five)
@@ -324,20 +327,24 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
         local peer_id = user_peer_id
         local worked = false
         local pvp
+        local name = server.getPlayerName(peer_id)
         if nosave["playerdata"][tostring(peer_id)]["pvp"] == true then
             nosave["playerdata"][tostring(peer_id)]["pvp"] = false
             server.notify(user_peer_id, "[Server]", "PVP disabled", 6)
+            server.announce("[Server]", peer_id.." | "..name.." Has disabled there pvp")
             worked = true
             pvp = "false"
         elseif nosave["playerdata"][tostring(peer_id)]["pvp"] == false then
             nosave["playerdata"][tostring(peer_id)]["pvp"] = true
             server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
+            server.announce("[Server]", peer_id.." | "..name.." Has enabled there pvp")
             worked = true
             pvp = "true"
         end
         if worked ~= true then
             nosave["playerdata"][tostring(peer_id)]["pvp"] = true
             server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
+            server.announce("[Server]", peer_id.." | "..name.." Has enabled there pvp")
         end
         local ownersteamid = getsteam_id(user_peer_id)
         local vehicle_id = nil
@@ -345,7 +352,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
         for group_id, GroupData in pairs(g_savedata["usercreations"]) do
             if GroupData["ownersteamid"] == ownersteamid then
                 vehicle_id = GroupData["vehicle_id"]
-                server.setVehicleTooltip(vehicle_id, "Owner: "..name.." : "..peer_id.."\nPVP: "..pvp)
+                server.setVehicleTooltip(vehicle_id, "Owner: "..peer_id.." | "..name.."\nPVP: "..pvp.." | Vehicle ID: "..vehicle_id)
                 if nosave["playerdata"][tostring(peer_id)]["pvp"] == true then
                     server.setVehicleInvulnerable(vehicle_id, false)
                 elseif nosave["playerdata"][tostring(peer_id)]["pvp"] == false then
@@ -359,13 +366,49 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
     if (command:lower() == "?repair") then
         local ownersteamid = getsteam_id(user_peer_id)
         local vehicle_id = nil
+        local worked = false
         for group_id, GroupData in pairs(g_savedata["usercreations"]) do
             if GroupData["ownersteamid"] == ownersteamid then
                 vehicle_id = GroupData["vehicle_id"]
                 server.resetVehicleState(vehicle_id)
+                worked = true
             end
         end
-        server.notify(user_peer_id, "[Server]", "Your vehicle/vehicles has been repaired restocked", 5)
+        if worked == true then
+            local name = server.getPlayerName(user_peer_id)
+            server.notify(user_peer_id, "[Server]", "Your vehicle/vehicles has been repaired and restocked", 5)
+            server.announce("[Server]", user_peer_id.." | "..name.." Has repaired and restocked their vehicle/vehicles")
+        else
+            server.notify(user_peer_id, "[Server]", "You have no vehicle/vehicles to be repaired and restocked", 6)
+        end
+    end
+
+    --teleport player to vehicle
+    if (command:lower() == "?tpv") then
+        local worked = false
+        if one ~= nil then
+            local matrix = server.getVehiclePos(one, 0, 0, 0)
+            server.setPlayerPos(user_peer_id, matrix)
+            worked = true
+        elseif one == nil then
+            server.notify(user_peer_id, "[Server]", "You have to input the vehicle id of the vehcile you want to go to", 6)
+        end
+        if worked == true then
+            server.notify(user_peer_id, "[Server]", "You have been teleported to vehicle: "..one, 5)
+        end
+    end
+
+    -- teleport player to player
+    if (command:lower() == "?tpp") then
+        if perms >= PermAdmin then
+            if two == nil then
+                local m1 = server.getPlayerPos(one)
+                server.setPlayerPos(user_peer_id, m1)
+            elseif two ~= nil then
+                local m1 = server.getPlayerPos(two)
+                server.setPlayerPos(one, m1)
+            end
+        end
     end
 
     -- uptime command
@@ -439,6 +482,12 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
             local peer_id=X.id 
             local pas = ""
             local pvp = ""
+            local CTPS = ""
+            if TPS >= 60 then
+                CTPS = "60"
+            else
+                CTPS = string.format("%.0f",TPS)
+            end
             if nosave["playerdata"][tostring(peer_id)]["as"] == true then
                 pas = "True"
             elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
@@ -453,7 +502,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
             else
                 pvp = "Unknown"
             end
-            server.setPopupScreen(peer_id, 1, "ui", nosave["playerdata"][tostring(peer_id)]["ui"], "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
+            server.setPopupScreen(peer_id, 1, "ui", nosave["playerdata"][tostring(peer_id)]["ui"], "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..CTPS, -0.905, 0.8)
         end
     end
 
