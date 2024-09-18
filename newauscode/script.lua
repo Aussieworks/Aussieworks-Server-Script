@@ -8,16 +8,19 @@ PermMod = 2
 PermAdmin = 3
 PermOwner = 4
 
--- admin list. formatting: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
+-- admin list. Formatting: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
 adminlist = {}
 
 -- list that doesnt save
 nosave = {playerdata={}}
 chatMessages = {}
-maxMessages = 100
+maxMessages = 150
 last_ms = 0
 last_tps = 0
 playermaxvehicles = 1
+tipFrequency = 90  -- in seconds
+
+
 
 -- initalising the player
 function playerint(steam_id, peer_id)
@@ -35,7 +38,6 @@ end
 
 -- Function to format runtime in days, hours, minutes, and seconds
 function formatUptime(uptimeTicks, tickDuration)
-    uptimeTicks = server.getTimeMillisec()
     tickDuration = 1000
     local totalSeconds = math.floor(uptimeTicks / tickDuration)
     local hours = math.floor(totalSeconds / 3600)
@@ -57,41 +59,22 @@ function onPlayerLeave(steam_id, name, peer_id, admin, auth)
     server.announce("[Server]", name .. " left the game")
     table.insert(chatMessages, {full_message=name .. " left the game",pid=-1})
     local ownersteamid = getsteam_id(peer_id)
-        local vehiclespawned = false
-        for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-            if GroupData["ownersteamid"] == ownersteamid then
-                vehiclespawned = true
-                server.despawnVehicleGroup(tonumber(group_id), true)
-            end
-        end
-end
-
-function runAfterDelay(seconds, callback)
-    local delayTicks = 0
-    local delayDuration = seconds * 60  -- Convert seconds to ticks (60 ticks per second)
-    local hasRun = false  -- Flag to ensure the callback runs only once
-
-    -- Function to check delay inside onTick
-    function onTick()
-        if not hasRun then
-            if delayTicks >= delayDuration then
-                callback()  -- Run the callback (your code) after the delay
-                hasRun = true  -- Set flag to true to prevent running again
-            else
-                delayTicks = delayTicks + 1  -- Increment the tick counter
-            end
+    local vehiclespawned = false
+    for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+        if GroupData["ownersteamid"] == ownersteamid then
+            vehiclespawned = true
+            server.despawnVehicleGroup(tonumber(group_id), true)
         end
     end
 end
 
--- log chat messages function
+-- custom chat function
 function logChatMessage(peer_id, full_message)
     table.insert(chatMessages, {full_message=full_message,pid=peer_id,topid=nil})
     if #chatMessages > maxMessages then
         table.remove(chatMessages, 1)
     end
 end
-
 function printChatMessages()
     for i, chat in ipairs(chatMessages) do
         if chat.pid >= 0 then
@@ -123,10 +106,9 @@ function printChatMessages()
         end
     end
 end
-
 function onChatMessage(peer_id, sender_name, message)
     logChatMessage(peer_id, message)
-    runAfterDelay(0, printChatMessages)
+    sendChat = true
 end
 
 -- vehicle spawned
@@ -243,7 +225,37 @@ function ComputeTPS()
     LastMS=server.getTimeMillisec()
 end
 
-
+-- info ui function 
+function infoUI()
+    for _,player in pairs(server.getPlayers()) do
+        local peer_id=player.id 
+        local pas = ""
+        local pvp = ""
+        local CTPS = ""
+        if TPS >= 60 then
+            CTPS = "60"
+        else
+            CTPS = string.format("%.0f",TPS)
+        end
+        if nosave["playerdata"][tostring(peer_id)] ~= nil then
+            if nosave["playerdata"][tostring(peer_id)]["as"] == true then
+                pas = "True"
+            elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
+                pas = "False"
+            else
+                pas = "Unknown"
+            end
+            if nosave["playerdata"][tostring(peer_id)]["pvp"] == true then
+                pvp = "True"
+            elseif nosave["playerdata"][tostring(peer_id)]["pvp"] == false then
+                pvp = "False"
+            else
+                pvp = "Unknown"
+            end
+        end
+        server.setPopupScreen(peer_id, 1, "ui", nosave["playerdata"][tostring(peer_id)]["ui"], "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..CTPS, -0.905, 0.8)
+    end
+end
 
 -- commands
 function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command, one, two, three, four, five)
@@ -267,8 +279,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
     
     -- lists all the commands
     if (command:lower() == "?help") then
-        server.announce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?c".."\n|clears all your spawned vehciles".."\n|?disc".."\n|states our discord link".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?ui".."\n|toggles your ui".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles", user_peer_id)
-        table.insert(chatMessages, {full_message="-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?c".."\n|clears all your spawned vehciles".."\n|?disc".."\n|states our discord link".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?ui".."\n|toggles your ui".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|repairs all of your spawned vehicles",pid=-1,topid=user_peer_id})
+        server.announce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c".."\n|clears all your spawned vehciles".."\n|?disc".."\n|states our discord link".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?ui".."\n|toggles your ui".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles", user_peer_id)
+        table.insert(chatMessages, {full_message="-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c".."\n|clears all your spawned vehciles".."\n|?disc".."\n|states our discord link".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?ui".."\n|toggles your ui".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|repairs all of your spawned vehicles",pid=-1,topid=user_peer_id})
         if perms >= PermAdmin then
             server.announce("[Server]", "-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehciles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehciles of inputed players ids", user_peer_id)
             table.insert(chatMessages, {full_message="-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehciles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehciles of inputed players ids",pid=-1,topid=user_peer_id})
@@ -482,6 +494,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
             end
         end
     end
+    
     -- repair vehicles
     if (command:lower() == "?repair") then
         local ownersteamid = getsteam_id(user_peer_id)
@@ -534,11 +547,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 
     -- uptime command
     if (command:lower() == "?ut") then
-        local ut = formatUptime(uptimeTicks, tickDuration)
         server.announce("[Server]", "Uptime: "..ut, user_peer_id)
         table.insert(chatMessages, {full_message="Uptime: "..ut,pid=-1,topid=user_peer_id})
     elseif (command == "?uptime") then
-        local ut = formatUptime(uptimeTicks, tickDuration)
         server.announce("[Server]", "Uptime: "..ut, user_peer_id)
         table.insert(chatMessages, {full_message="Uptime: "..ut,pid=-1,topid=user_peer_id})
     end
@@ -620,38 +631,6 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
             server.notify(user_peer_id, "[WIP]", "UI enabled", 5)
         end
     end
-    
-    -- ui function 
-    function onTick()
-        local ut = formatUptime(uptimeTicks, tickDuration)
-        ComputeTPS()
-        for _,X in pairs(server.getPlayers()) do
-            local peer_id=X.id 
-            local pas = ""
-            local pvp = ""
-            local CTPS = ""
-            if TPS >= 60 then
-                CTPS = "60"
-            else
-                CTPS = string.format("%.0f",TPS)
-            end
-            if nosave["playerdata"][tostring(peer_id)]["as"] == true then
-                pas = "True"
-            elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
-                pas = "False"
-            else
-                pas = "Unknown"
-            end
-            if nosave["playerdata"][tostring(peer_id)]["pvp"] == true then
-                pvp = "True"
-            elseif nosave["playerdata"][tostring(peer_id)]["pvp"] == false then
-                pvp = "False"
-            else
-                pvp = "Unknown"
-            end
-            server.setPopupScreen(peer_id, 1, "ui", nosave["playerdata"][tostring(peer_id)]["ui"], "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..CTPS, -0.905, 0.8)
-        end
-    end
 
     -- auth command
     if (command:lower() == "?auth") then
@@ -683,14 +662,13 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 end
 
 
-
 -- tip messages
 if 1 == 1 then
     local timer = 0
     local step = 1
-    function onTick()
+    function tipMessages()
         timer = timer + 1
-        if timer >= 90*60 then
+        if timer >= tipFrequency*60 then
             if step == 1 then
                 server.announce("[Tip]", "use ?help to get a list of all the available commands")
                 table.insert(chatMessages, {full_message="use ?help to get a list of all the available commands",pid=-1})
@@ -722,6 +700,24 @@ if 1 == 1 then
     end
 end
 
+-- Main onTick
+function onTick()
+    -- uptime
+    uptimeTicks = server.getTimeMillisec()
+    ut = formatUptime(uptimeTicks, tickDuration)
+    
+    -- calls functions
+    infoUI()
+    ComputeTPS()
+    tipMessages()
+    
+    -- custom chat
+    if sendChat == true then
+        printChatMessages()
+        sendChat = false
+    end
+end
+
 -- on scripts reloaded
 function onDestroy()
     server.cleanVehicles()
@@ -729,7 +725,7 @@ end
 
 -- on world load
 function onCreate(is_world_create)
-    for i = 1, 100 do
+    for i = 1, maxMessages do
         table.insert(chatMessages, {full_message="",pid=-10})
     end
     server.announce("[Server]", "Vehicles despawned for script reload. Once scripts have reloaded you may respawn your vehciles")
@@ -742,5 +738,4 @@ function onCreate(is_world_create)
     for _,playerdata in pairs(server.getPlayers()) do
         playerint(playerdata["steam_id"], playerdata["id"])
     end
-    
 end
