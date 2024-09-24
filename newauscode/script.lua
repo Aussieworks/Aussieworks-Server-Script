@@ -8,8 +8,8 @@ PermMod = 2
 PermAdmin = 3
 PermOwner = 4
 
--- admin list. Formatting: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
-adminlist = {}
+-- admin list
+adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561199032157360",PermAdmin},{"76561198371768441",PermAdmin}}
 
 -- list that doesnt save
 nosave = {playerdata={}}
@@ -38,6 +38,7 @@ end
 
 -- Function to format runtime in days, hours, minutes, and seconds
 function formatUptime(uptimeTicks, tickDuration)
+    uptimeTicks = server.getTimeMillisec()
     tickDuration = 1000
     local totalSeconds = math.floor(uptimeTicks / tickDuration)
     local hours = math.floor(totalSeconds / 3600)
@@ -109,6 +110,12 @@ end
 function onChatMessage(peer_id, sender_name, message)
     logChatMessage(peer_id, message)
     sendChat = true
+    local wsc = "false"
+    if sendChat then
+        wsc = "true"
+    end
+    server.announce("[Server]", wsc, 0)
+    table.insert(chatMessages, {full_message=wsc,pid=-1,topid=0})
 end
 
 -- vehicle spawned
@@ -232,6 +239,7 @@ function infoUI()
         local pas = ""
         local pvp = ""
         local CTPS = ""
+        ComputeTPS()
         if TPS >= 60 then
             CTPS = "60"
         else
@@ -712,7 +720,7 @@ function onTick()
     tipMessages()
     
     -- custom chat
-    if sendChat == true then
+    if sendChat then
         printChatMessages()
         sendChat = false
     end
