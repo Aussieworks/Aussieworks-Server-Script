@@ -8,24 +8,24 @@ PermMod = 2
 PermAdmin = 3
 PermOwner = 4
 
--- admin list. formating: adminlist = {{{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
-adminlist = {}
+-- admin list
+adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561199032157360",PermAdmin},{"76561198371768441",PermAdmin}}
 
 -- list that doesnt save
 nosave = {playerdata={}}
 chatMessages = {}
 maxMessages = 150
-last_ms = 0
-last_tps = 0
 playermaxvehicles = 1
 tipFrequency = 90  -- in seconds
+tiptimer = 0
+tipstep = 1 -- dont touch
 
 
 
 -- initalising the player
 function playerint(steam_id, peer_id)
     local pn =  server.getPlayerName(peer_id)
-    nosave["playerdata"][tostring(peer_id)] = {steam_id=tostring(steam_id), name=tostring(pn), ui=true, as=true, pvp=false}
+    nosave["playerdata"][tostring(peer_id)] = {steam_id=tostring(steam_id), name=tostring(pn), as=true, pvp=false}
     for _, sid in pairs(adminlist) do
         if tostring(sid[1]) == tostring(steam_id) then
             nosave["playerdata"][tostring(peer_id)]["perms"] = sid[2]
@@ -202,69 +202,6 @@ function getsteam_id(peer_id)
     end
 end
 
--- tps
-TPS=0
-TPSList={}
-TPSDivisor=0
-TpsHistoryLength=20
-LastMS=server.getTimeMillisec()
-
-for X =1,TpsHistoryLength,1 do
-    TPSDivisor=TPSDivisor + X
-    table.insert(TPSList,0)
-end
-TPSDivisor=1/TPSDivisor
-
-function ComputeTPS()
-    local CurrentTPS=(1000 / (server.getTimeMillisec() - LastMS)) * 5
-
-    for X,Y in pairs(TPSList) do
-        TPSList[X]=TPSList[X + 1]
-    end
-    TPSList[TpsHistoryLength]=CurrentTPS
-
-    TPS=0
-    for X =1,TpsHistoryLength,1 do
-        TPS=TPS + (TPSList[X] * (TPSDivisor * X))
-    end
-    
-    TPS=(math.floor(TPS * 10) / 10) / 5
-    LastMS=server.getTimeMillisec()
-end
-
--- info ui function 
-function infoUI()
-    for _,player in pairs(server.getPlayers()) do
-        local peer_id=player.id 
-        local pas = ""
-        local pvp = ""
-        local CTPS = ""
-        ComputeTPS()
-        if TPS >= 60 then
-            CTPS = "60"
-        else
-            CTPS = string.format("%.0f",TPS)
-        end
-        if nosave["playerdata"][tostring(peer_id)] ~= nil then
-            if nosave["playerdata"][tostring(peer_id)]["as"] == true then
-                pas = "True"
-            elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
-                pas = "False"
-            else
-                pas = "Unknown"
-            end
-            if nosave["playerdata"][tostring(peer_id)]["pvp"] == true then
-                pvp = "True"
-            elseif nosave["playerdata"][tostring(peer_id)]["pvp"] == false then
-                pvp = "False"
-            else
-                pvp = "Unknown"
-            end
-        end
-        server.setPopupScreen(peer_id, 1, "ui", nosave["playerdata"][tostring(peer_id)]["ui"], "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..CTPS, -0.905, 0.8)
-    end
-end
-
 -- commands
 function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command, one, two, three, four, five)
     local perms = nosave["playerdata"][tostring(user_peer_id)]["perms"]
@@ -287,8 +224,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
     
     -- lists all the commands
     if (command:lower() == "?help") then
-        server.announce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c".."\n|clears all your spawned vehciles".."\n|?disc".."\n|states our discord link".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?ui".."\n|toggles your ui".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles", user_peer_id)
-        table.insert(chatMessages, {full_message="-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c".."\n|clears all your spawned vehciles".."\n|?disc".."\n|states our discord link".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?ui".."\n|toggles your ui".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|repairs all of your spawned vehicles",pid=-1,topid=user_peer_id})
+        server.announce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c".."\n|clears all your spawned vehciles".."\n|?disc".."\n|states our discord link".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles", user_peer_id)
+        table.insert(chatMessages, {full_message="-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c".."\n|clears all your spawned vehciles".."\n|?disc".."\n|states our discord link".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|repairs all of your spawned vehicles",pid=-1,topid=user_peer_id})
         if perms >= PermAdmin then
             server.announce("[Server]", "-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehciles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehciles of inputed players ids", user_peer_id)
             table.insert(chatMessages, {full_message="-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehciles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehciles of inputed players ids",pid=-1,topid=user_peer_id})
@@ -300,19 +237,11 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
         if one ~= nil then
             local sid = ""
             local name = ""
-            local wui = ""
             local pvp = ""
             if perms >= PermAdmin then
                 local playedata = nosave["playerdata"][tostring(one)]
                 sid = playedata["steam_id"]    
                 name = playedata["name"]
-                if playedata["ui"] == true then
-                    wui = "True"
-                elseif playedata["ui"] == false then
-                    wui = "False"
-                else
-                    wui = "Unknown"
-                end
                 if playedata["as"] == true then
                     was = "True"
                 elseif playedata["as"] == false then
@@ -327,8 +256,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
                 else
                     pvp = "Unknown"
                 end
-                server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nUI: "..wui.."\nAntisteal: "..was.."\nPVP: "..pvp, user_peer_id)
-                table.insert(chatMessages, {full_message="Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nUI: "..wui.."\nAntisteal: "..was.."\nPVP: "..pvp,pid=-1,topid=user_peer_id})
+                server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp, user_peer_id)
+                table.insert(chatMessages, {full_message="Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp,pid=-1,topid=user_peer_id})
             end
         else
 		    local pid = ""
@@ -620,25 +549,6 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
             end
         end
     end
-    
-    -- ui command
-    if (command:lower() == "?ui") then
-        local peer_id = user_peer_id
-        local worked = false
-        if nosave["playerdata"][tostring(peer_id)]["ui"] == false then
-            nosave["playerdata"][tostring(peer_id)]["ui"] = true
-            server.notify(user_peer_id, "[WIP]", "UI enabled", 5)
-            worked = true
-        elseif nosave["playerdata"][tostring(peer_id)]["ui"] == true then
-            nosave["playerdata"][tostring(peer_id)]["ui"] = false
-            server.notify(user_peer_id, "[WIP]", "UI disabled", 6)
-            worked = true
-        end
-        if worked ~= true then
-            nosave["playerdata"][tostring(peer_id)]["ui"] = true
-            server.notify(user_peer_id, "[WIP]", "UI enabled", 5)
-        end
-    end
 
     -- auth command
     if (command:lower() == "?auth") then
@@ -671,42 +581,39 @@ end
 
 
 -- tip messages
-if 1 == 1 then
-    local timer = 0
-    local step = 1
-    function tipMessages()
-        timer = timer + 1
-        if timer >= tipFrequency*60 then
-            if step == 1 then
-                server.announce("[Tip]", "use ?help to get a list of all the available commands")
-                table.insert(chatMessages, {full_message="use ?help to get a list of all the available commands",pid=-1})
-                timer = 0
-            end
-            if step == 2 then
-                server.announce("[Tip]", "use ?auth if you dont have permision to use a workbench")
-                table.insert(chatMessages, {full_message="use ?auth if you dont have permision to use a workbench",pid=-1})
-                timer = 0
-            end
-            if step == 3 then
-                server.announce("[Tip]", "we have a discord server. dont forget to join. discord.gg/snJyn6V2Qs or run the command ?disc")
-                table.insert(chatMessages, {full_message="we have a discord server. dont forget to join. discord.gg/snJyn6V2Qs or run the command ?disc",pid=-1})
-                timer = 0
-            end
-            if step == 4 then
-                server.announce("[Tip]", "use ?as or ?antisteal to toggle your personal antisteal")
-                table.insert(chatMessages, {full_message="use ?as or ?antisteal to toggle your personal antisteal",pid=-1})
-                timer = 0
-            end
-            if step == 5 then
-                server.announce("[Tip]", "use ?pvp to toggle your personal pvp")
-                table.insert(chatMessages, {full_message="use ?pvp to toggle your personal pvp",pid=-1})
-                timer = 0
-                step = 1
-            end
-            step = step + 1
+function tipMessages()
+    tiptimer = tiptimer + 1
+    if tiptimer >= tipFrequency*60 then
+        if tipstep == 1 then
+            server.announce("[Tip]", "use ?help to get a list of all the available commands")
+            table.insert(chatMessages, {full_message="use ?help to get a list of all the available commands",pid=-1})
+            tiptimer = 0
         end
+        if tipstep == 2 then
+            server.announce("[Tip]", "use ?auth if you dont have permision to use a workbench")
+            table.insert(chatMessages, {full_message="use ?auth if you dont have permision to use a workbench",pid=-1})
+            tiptimer = 0
+        end
+        if tipstep == 3 then
+            server.announce("[Tip]", "we have a discord server. dont forget to join. discord.gg/snJyn6V2Qs or run the command ?disc")
+            table.insert(chatMessages, {full_message="we have a discord server. dont forget to join. discord.gg/snJyn6V2Qs or run the command ?disc",pid=-1})
+            tiptimer = 0
+        end
+        if tipstep == 4 then
+            server.announce("[Tip]", "use ?as or ?antisteal to toggle your personal antisteal")
+            table.insert(chatMessages, {full_message="use ?as or ?antisteal to toggle your personal antisteal",pid=-1})
+            tiptimer = 0
+        end
+        if tipstep == 5 then
+            server.announce("[Tip]", "use ?pvp to toggle your personal pvp")
+            table.insert(chatMessages, {full_message="use ?pvp to toggle your personal pvp",pid=-1})
+            tiptimer = 0
+            tipstep = 1
+        end
+        tipstep = tipstep + 1
     end
 end
+
 
 -- Main onTick
 function onTick()
@@ -715,8 +622,6 @@ function onTick()
     ut = formatUptime(uptimeTicks, tickDuration)
     
     -- calls functions
-    infoUI()
-    ComputeTPS()
     tipMessages()
     
     -- custom chat
