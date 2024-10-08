@@ -6,3 +6,5 @@ This is the repo for the [Aussieworks](https://github.com/Aussieworks) server sc
 
 >[!WARNING]
 >This script is still in development may not work in the intended way as a result
+
+# Current Features
