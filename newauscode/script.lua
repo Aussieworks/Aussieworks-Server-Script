@@ -21,6 +21,7 @@ chatMessages = {}
 discordlink = "discord.gg/snJyn6V2Qs"
 maxMessages = 150
 playermaxvehicles = 1
+unlockislands = true
 playerdatasave = false -- do not touch. currently being worked on
 tipFrequency = 120  -- in seconds
 tiptimer = 0
@@ -650,6 +651,12 @@ function onCreate(is_world_create)
     if g_savedata["usercreations"] == nil then
         g_savedata["usercreations"] = {}
     end
+    if unlockislands then
+        server.setGameSetting("unlock_all_islands", true)
+    end
+    server.setGameSetting("vehicle_damage", true)
+    server.setGameSetting("clear_fow", true)
+    server.setGameSetting("override_weather", true)
     for _,playerdata in pairs(server.getPlayers()) do
         playerint(playerdata["steam_id"], playerdata["id"])
     end
