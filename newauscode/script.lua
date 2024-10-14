@@ -1,5 +1,8 @@
 -- g_savedata table that persists between game sessions
-g_savedata = {}
+g_savedata = {
+    playerdata={},
+    usercreations={}
+}
 
 -- perm numbers
 PermNone = 0
@@ -8,14 +11,18 @@ PermMod = 2
 PermAdmin = 3
 PermOwner = 4
 
--- admin list. format: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
-adminlist = {}
+-- admin list
+adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561199032157360",PermAdmin},{"76561198371768441",PermAdmin}}
 
--- list that doesnt save
-nosave = {playerdata={}}
+-- tables
+nosave = {playerdata={}} -- list that doesnt save
 chatMessages = {}
+-- settings
+discordlink = "discord.gg/snJyn6V2Qs"
 maxMessages = 150
 playermaxvehicles = 1
+unlockislands = true
+playerdatasave = false -- do not touch. currently being worked on
 tipFrequency = 120  -- in seconds
 tiptimer = 0
 tipstep = 1 -- dont touch
@@ -26,14 +33,40 @@ tipstep = 1 -- dont touch
 -- initalising the player
 function playerint(steam_id, peer_id)
     local pn =  server.getPlayerName(peer_id)
-    nosave["playerdata"][tostring(peer_id)] = {steam_id=tostring(steam_id), name=tostring(pn), as=true, pvp=false}
-    for _, sid in pairs(adminlist) do
-        if tostring(sid[1]) == tostring(steam_id) then
-            nosave["playerdata"][tostring(peer_id)]["perms"] = sid[2]
+    if playerdatasave and g_savedata["playerdata"][tostring(steam_id)] == nil then
+        g_savedata["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=tostring(peer_id), name=tostring(pn), as=true, pvp=false}
+        for _, sid in pairs(adminlist) do
+            if tostring(sid[1]) == tostring(steam_id) then
+                g_savedata["playerdata"][tostring(steam_id)]["perms"] = sid[2]
+                nosave["playerdata"][tostring(peer_id)]["perms"] = sid[2]
+            end
         end
-    end
-    if nosave["playerdata"][tostring(peer_id)]["perms"] == nil then
-        nosave["playerdata"][tostring(peer_id)]["perms"] = PermNone
+        if g_savedata["playerdata"][tostring(steam_id)]["perms"] == nil then
+            g_savedata["playerdata"][tostring(steam_id)]["perms"] = PermNone
+            nosave["playerdata"][tostring(peer_id)]["perms"] = PermNone
+        end
+    elseif playerdatasave and g_savedata["playerdata"][tostring(steam_id)] ~= nil then
+        g_savedata["playerdata"][tostring(steam_id)] = {peer_id=tostring(peer_id), name=tostring(pn)}
+        for _, sid in pairs(adminlist) do
+            if tostring(sid[1]) == tostring(steam_id) then
+                g_savedata["playerdata"][tostring(steam_id)]["perms"] = sid[2]
+                nosave["playerdata"][tostring(peer_id)]["perms"] = sid[2]
+            end
+        end
+        if g_savedata["playerdata"][tostring(steam_id)]["perms"] == nil then
+            g_savedata["playerdata"][tostring(steam_id)]["perms"] = PermNone
+            nosave["playerdata"][tostring(peer_id)]["perms"] = PermNone
+        end
+    else
+        nosave["playerdata"][tostring(peer_id)] = {steam_id=tostring(steam_id), name=tostring(pn), as=true, pvp=false}
+        for _, sid in pairs(adminlist) do
+            if tostring(sid[1]) == tostring(steam_id) then
+                nosave["playerdata"][tostring(peer_id)]["perms"] = sid[2]
+            end
+        end
+        if nosave["playerdata"][tostring(peer_id)]["perms"] == nil then
+            nosave["playerdata"][tostring(peer_id)]["perms"] = PermNone
+        end
     end
 end
 
@@ -162,8 +195,8 @@ function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
             if GroupData["ownersteamid"] == ownersteamid then
                 vehiclespawned = vehiclespawned + 1
                 if vehiclespawned > playermaxvehicles then
-                server.despawnVehicleGroup(tonumber(group_id), true)
-                server.notify(peer_id, "[Server]", "You can only have "..playermaxvehicles.." vehicle spawned at a time", 6)
+                    server.despawnVehicleGroup(tonumber(group_id), true)
+                    server.notify(peer_id, "[Server]", "You can only have "..playermaxvehicles.." vehicle spawned at a time", 6)
                 end
             end
         end
@@ -322,20 +355,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 
 -- Vehicles
     -- clear vehicle command
-    if (command:lower() == "?c") then
-        local ownersteamid = getsteam_id(user_peer_id)
-        local vehiclespawned = false
-        for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-            if GroupData["ownersteamid"] == ownersteamid then
-                vehiclespawned = true
-                server.despawnVehicleGroup(tonumber(group_id), true)
-                server.notify(user_peer_id, "[Server]", "Your vehicle/vehicles have been despawned", 5)
-            end
-        end
-        if vehiclespawned == false then
-            server.notify(user_peer_id, "[Server]", "You do not have any vehicle/vehicles spawned", 6)
-        end
-    elseif (command:lower() == "?clear") then
+    if (command:lower() == "?c") or (command:lower() == "?clear") then
         local ownersteamid = getsteam_id(user_peer_id)
         local vehiclespawned = false
         for group_id, GroupData in pairs(g_savedata["usercreations"]) do
@@ -351,22 +371,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
     end
     
     -- clear spesific players vehicle
-    if (command:lower() == "?pc") then
-        if perms >= PermAdmin then    
-            local ownersteamid = getsteam_id(one)
-            local vehiclespawned = false
-            for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-                if GroupData["ownersteamid"] == ownersteamid then
-                    vehiclespawned = true
-                    server.despawnVehicleGroup(tonumber(group_id), true)
-                    server.notify(user_peer_id, "[Server]", "Specified player's vehicle/vehicles have been despawned", 5)
-                end
-            end
-            if vehiclespawned == false then
-                server.notify(user_peer_id, "[Server]", "Specified player dosn't have any vehicle/vehicles to despawned", 6)
-            end
-        end
-    elseif (command:lower() == "?playerclear") then
+    if (command:lower() == "?pc") or (command:lower() == "?playerclear") then
         if perms >= PermAdmin then    
             local ownersteamid = getsteam_id(one)
             local vehiclespawned = false
@@ -384,21 +389,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
     end
 
     -- clear all vehicles
-    if (command:lower() == "?ca") then
-        if perms >= PermAdmin then
-            local vehiclespawned = false
-            for group_id, GroupData in pairs(g_savedata["usercreations"]) do 
-                vehiclespawned = true
-                server.despawnVehicleGroup(tonumber(group_id), true)
-            end
-            if vehiclespawned == true then
-                server.notify(user_peer_id, "[Server]", "All vehicles have been despawned", 5)
-            end
-            if vehiclespawned == false then
-                server.notify(user_peer_id, "[Server]", "There are no vehicles to despawn", 6)
-            end
-        end
-    elseif (command:lower() == "?clearall") then
+    if (command:lower() == "?ca") or (command:lower() == "?clearall") then
         if perms >= PermAdmin then
             local vehiclespawned = false
             for group_id, GroupData in pairs(g_savedata["usercreations"]) do 
@@ -481,35 +472,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 
 
     -- anti steal command
-    if (command:lower() == "?as") then
-        local peer_id = user_peer_id
-        local worked = false
-        if nosave["playerdata"][tostring(peer_id)]["as"] == true then
-            nosave["playerdata"][tostring(peer_id)]["as"] = false
-            server.notify(user_peer_id, "[Server]", "Anti-steal disabled", 6)
-            worked = true
-        elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
-            nosave["playerdata"][tostring(peer_id)]["as"] = true
-            server.notify(user_peer_id, "[Server]", "Anti-steal enabled", 5)
-            worked = true
-        end
-        if worked ~= true then
-            nosave["playerdata"][tostring(peer_id)]["as"] = true
-            server.notify(user_peer_id, "[Server]", "Anti-steal enabled", 5)
-        end
-        local ownersteamid = getsteam_id(user_peer_id)
-        local vehicle_id = nil
-        for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-            if GroupData["ownersteamid"] == ownersteamid then
-                vehicle_id = GroupData["vehicle_id"]
-                if nosave["playerdata"][tostring(peer_id)]["as"] == true then
-                    server.setVehicleEditable(vehicle_id,false)
-                elseif nosave["playerdata"][tostring(peer_id)]["as"] == false then
-                    server.setVehicleEditable(vehicle_id, true)
-                end
-            end
-        end
-    elseif (command:lower() == "?antisteal") then
+    if (command:lower() == "?as") or (command:lower() == "?antisteal") then
         local peer_id = user_peer_id
         local worked = false
         if nosave["playerdata"][tostring(peer_id)]["as"] == true then
@@ -558,10 +521,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
     end
 
     -- uptime command
-    if (command:lower() == "?ut") then
-        server.announce("[Server]", "Uptime: "..ut, user_peer_id)
-        table.insert(chatMessages, {full_message="Uptime: "..ut,pid=-1,topid=user_peer_id})
-    elseif (command == "?uptime") then
+    if (command:lower() == "?ut") or (command:lower() == "?uptime") then
         server.announce("[Server]", "Uptime: "..ut, user_peer_id)
         table.insert(chatMessages, {full_message="Uptime: "..ut,pid=-1,topid=user_peer_id})
     end
@@ -577,7 +537,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
     end
     
     --  weather command
-    if (command:lower() == "?w") then
+    if (command:lower() == "?w") or (command:lower() == "?weather") then
         if perms >= PermAdmin then
             if tonumber(one) ~= fail then
                 server.setWeather(one, two, three)
@@ -599,12 +559,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
     end
 
     -- discord command
-    if (command:lower() == "?disc") then
-        server.announce("[Server]", "discord.gg/snJyn6V2Qs", user_peer_id)
-        table.insert(chatMessages, {full_message="discord.gg/snJyn6V2Qs",pid=-1,topid=user_peer_id})
-    elseif (command == "?discord") then
-        server.announce("[Server]", "discord.gg/snJyn6V2Qs", user_peer_id)
-        table.insert(chatMessages, {full_message="discord.gg/snJyn6V2Qs",pid=-1,topid=user_peer_id})
+    if (command:lower() == "?disc") or (command:lower() == "?discord")then
+        server.announce("[Server]", discordlink, user_peer_id)
+        table.insert(chatMessages, {full_message=discordlink,pid=-1,topid=user_peer_id})
     end
 
     -- print chatMessages
@@ -676,7 +633,9 @@ end
 
 -- on scripts reloaded
 function onDestroy()
-    server.cleanVehicles()
+    for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+        server.despawnVehicleGroup(tonumber(group_id), true)
+    end
 end
 
 
@@ -692,6 +651,12 @@ function onCreate(is_world_create)
     if g_savedata["usercreations"] == nil then
         g_savedata["usercreations"] = {}
     end
+    if unlockislands then
+        server.setGameSetting("unlock_all_islands", true)
+    end
+    server.setGameSetting("vehicle_damage", true)
+    server.setGameSetting("clear_fow", true)
+    server.setGameSetting("override_weather", true)
     for _,playerdata in pairs(server.getPlayers()) do
         playerint(playerdata["steam_id"], playerdata["id"])
     end
