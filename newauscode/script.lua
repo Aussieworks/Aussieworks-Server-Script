@@ -689,9 +689,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 			if GroupData["ownersteamid"] == ownersteamid then
 				vehicle_id = GroupData["vehicle_id"]
-				if getPlayerdata("as", true, peer_id) == true then
+				if getPlayerdata("as", true, user_peer_id) == true then
 					server.setVehicleEditable(vehicle_id,false)
-				elseif getPlayerdata("as", true, peer_id) == false then
+				elseif getPlayerdata("as", true, user_peer_id) == false then
 					server.setVehicleEditable(vehicle_id, true)
 				end
 			end
