@@ -18,4 +18,4 @@ This is the repo for the [Aussieworks](https://github.com/Aussieworks) server sc
 - Antisteal
 - PVP
 ## Docs
-[Commands]{Docs/Commands.md}
+[Commands](Docs/Commands.md)
