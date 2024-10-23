@@ -43,7 +43,7 @@ same as the ?as command but intead of toggling the senders anitsteal it toggles 
 #### alias: ?forceantisteal
 ## Misc
 ### ?pvplist
-announces all the player with pvp on in chat to the sender.
+announces all online players with pvp on in chat to the sender.
 #### alias: none
 ### ?ut
 announces the uptime of the server in chat to the sender.
