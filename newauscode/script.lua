@@ -179,8 +179,8 @@ end
 
 -- player joined
 function onPlayerJoin(steam_id, name, peer_id, admin, auth)
-	server.announce("[Server]", name .. " joined the game")
-	table.insert(chatMessages, {full_message=name .. " joined the game",name="[Server]"})
+	server.announce("[Server]", peer_id.." | "..name.." joined the game")
+	table.insert(chatMessages, {full_message=peer_id.." | "..name.." joined the game",name="[Server]"})
 	sendChat = true
 	server.removeAuth(peer_id)
 	playerint(steam_id, peer_id)
@@ -188,8 +188,8 @@ end
 
 -- player leave
 function onPlayerLeave(steam_id, name, peer_id, admin, auth)
-	server.announce("[Server]", name .. " left the game")
-	table.insert(chatMessages, {full_message=name .. " left the game",name="[Server]"})
+	server.announce("[Server]", peer_id.." | "..name.." left the game")
+	table.insert(chatMessages, {full_message=peer_id.." | "..name.." left the game",name="[Server]"})
 	local ownersteamid = getsteam_id(peer_id)
 	local vehiclespawned = false
 	for group_id, GroupData in pairs(g_savedata["usercreations"]) do
@@ -753,20 +753,11 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		table.insert(chatMessages, {full_message="-=Players with pvp on=-",name="[Server]",topid=user_peer_id})
 		local pid = ""
 		local name = ""
-		if playerdatasave then
-			for sid, playedata in pairs(g_savedata["playerdata"]) do
-				pid = getpeer_id(sid)
-				name = playedata["name"]
-				if playedata["pvp"] == true then
-					server.announce("[Server]", pid.." | "..name, user_peer_id)
-					table.insert(chatMessages, {full_message=pid.." | "..name,name="[Server]",topid=user_peer_id})
-				end
-			end
-		else
-			for sid, playedata in pairs(nosave["playerdata"]) do
-				pid = getpeer_id(sid)
-				name = playedata["name"]
-				if playedata["pvp"] == true then
+		for _, playerdata in pairs(server.getPlayers()) do
+			if playerdatasave then
+				if getPlayerdata("pvp", true, playerdata["id"]) then
+					local name = getPlayerdata("name", true, playerdata["id"])
+					pid = playerdata["id"]
 					server.announce("[Server]", pid.." | "..name, user_peer_id)
 					table.insert(chatMessages, {full_message=pid.." | "..name,name="[Server]",topid=user_peer_id})
 				end
@@ -783,7 +774,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- lists all the commands
 	if (command:lower() == "?help") then
 		server.announce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c".."\n|clears all your spawned vehciles".."\n|?disc".."\n|states our discord link".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles", user_peer_id)
-		table.insert(chatMessages, {full_message="-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c".."\n|clears all your spawned vehciles".."\n|?disc".."\n|states our discord link".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|repairs all of your spawned vehicles",name="[Server]",topid=user_peer_id})
+		table.insert(chatMessages, {full_message="-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c".."\n|clears all your spawned vehciles".."\n|?disc".."\n|states our discord link".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles",name="[Server]",topid=user_peer_id})
 		if perms >= PermAdmin then
 			server.announce("[Server]", "-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehciles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehciles of inputed players ids".."\n|?forceas [peer_id] {true/false}".."\n|toggles as for inputed peer id".."\n|?forcepvp [peer_id] {true/false}".."\n|toggles pvp for inputed peer id".."\n|?clearchat".."\n|clears chat", user_peer_id)
 			table.insert(chatMessages, {full_message="-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehciles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehciles of inputed players ids".."\n|?forceas [peer_id] {true/false}".."\n|toggles as for inputed peer id".."\n|?forcepvp [peer_id] {true/false}".."\n|toggles pvp for inputed peer id",name="[Server]",topid=user_peer_id})
