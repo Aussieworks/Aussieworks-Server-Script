@@ -12,11 +12,12 @@ PermAdmin = 3
 PermOwner = 4
 
 -- admin list. formating: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
-adminlist = {}
+adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561198371768441",PermAdmin},{"76561199032157360",PermAdmin}}
 
 -- tables
 nosave = {playerdata={}} -- list that doesnt save
 chatMessages = {}
+hiddencommands = {{"?msg",true},{"?warn",true},{"?pi",true},{"?pc",true},{"?forcepvp",true},{"?forceas",true}} -- list of commands to dont want to show to everyone in chat
 -- settings
 discordlink = "discord.gg/snJyn6V2Qs"
 maxMessages = 150
@@ -389,9 +390,20 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if not customchat then
 		name = playername
 	end
-	server.announce(name, "> "..full_message)
-	table.insert(chatMessages, {full_message="> "..full_message,name=name})
 	
+	local hidecommand = false
+	for c, commanddata in pairs(hiddencommands) do
+		if command:lower() == commanddata[1] then
+			if commanddata[2] then
+				hidecommand = true
+			end
+		end
+	end
+	if not hidecommand then
+		server.announce(name, "> "..full_message)
+		table.insert(chatMessages, {full_message="> "..full_message,name=name})
+	end
+
 
 -- Player
 	-- player info
@@ -486,7 +498,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?warn") then
 		if perms >= PermMod then
 			server.removeAuth(one)
-			reason = full_message:gsub("^%?warn%s*", ""):gsub("^%?", ""):gsub(one, "") -- removes ?warn and varible one from full_message
+			local reason = full_message:gsub("^%?warn%s*", ""):gsub("^%?", ""):gsub(one, "") -- removes ?warn and varible one from full_message
 			server.notify(one, "[Warn]", "You have been warned".."\nReason: "..reason, 6)
 			local ownersteamid = getsteam_id(one)
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
@@ -828,6 +840,22 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			local name = getPlayerdata("name", true, user_peer_id)
 			server.announce("[Chat]", "Chat Cleared By: "..name)
 			table.insert(chatMessages, {full_message="Chat Cleared By: "..name,name="[Chat]"})
+		end
+	end
+
+	-- private message another player
+	if (command:lower() == "?msg") then
+		if one ~= nil then
+			local message = full_message:gsub("^%?msg%s*", ""):gsub("^%?", ""):gsub(one, "")
+			local sendername = getPlayerdata("name", true, user_peer_id)
+			local toname =	getPlayerdata("name", true, one)
+			server.announce("[Msg] From ->"..sendername, message, one)
+			table.insert(chatMessages, {full_message=message,name="[Msg] From "..sendername,topid=one})
+			server.announce("[Msg] To ->"..toname, message, user_peer_id)
+			table.insert(chatMessages, {full_message=message,name="[Msg] To "..toname,topid=user_peer_id})
+		else
+			server.announce("[Msg]", "Please input a peer id to send to", user_peer_id)
+			table.insert(chatMessages, {full_message="Please input a peer id to send to",name="[Msg]",topid=user_peer_id})
 		end
 	end
 --endregion
