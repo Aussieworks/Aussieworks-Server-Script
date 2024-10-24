@@ -66,3 +66,6 @@ used in the testing of the customchat. when run by someone with PermAdmin it pri
 ### ?clearchat (PermMod)
 when run by someone with PermMod and it prints a bunch of blank line and then a little banner at the bottem saying who the chat was cleared by.
 #### alias: none
+### ?msg {peer_id} {message}
+when peer id is inputed it will send the message to player with the inputed peer id. this message is only shown to the sender and the person with the inputed peer id
+#### alias: none
