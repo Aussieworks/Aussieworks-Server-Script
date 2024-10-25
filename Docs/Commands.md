@@ -4,7 +4,7 @@ this document goes through all the current commands and what they do. [optinonal
 ### ?pi [peer_id]
 when no value is inputed into the ?pi command, it will list all the players saved in playerdata along with their peer_id, name and steam_id. when a peer_id is inputed it will show their peer_id, name, steam_id, antisteal status and pvp status.
 #### alias: none
-### ?tpp {peer_id} [peer_id] (PermAdmin)
+### ?tpp {peer_id} [peer_id] (PermMod)
 when one peer_id is inputed into the ?tpp command, it will teleport the player sending the command to the player whos peer_id has been inputed. if both values are provided then it will teleport the payer with the first inputed peer_id to the player with the second. if a player does not exist with any inputed peer_id's it will teleport them to the starter island at 0,0.
 #### alias: none
 ### ?tpv {vehicle_id}
