@@ -69,3 +69,6 @@ when run by someone with PermMod and it prints a bunch of blank line and then a 
 ### ?msg {peer_id} {message}
 when peer id is inputed it will send the message to player with the inputed peer id. this message is only shown to the sender and the person with the inputed peer id
 #### alias: none
+### ?version
+shows script version and if sender had PermMod or greater it shows the current settings
+#### alias: ?ver
