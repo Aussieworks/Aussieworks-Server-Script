@@ -31,7 +31,7 @@ tipFrequency = 120  -- in seconds
 -- dont touch
 tiptimer = 0
 tipstep = 1
-scriptversion = "v1.5.6-Testing"
+scriptversion = "v1.5.6"
 
 
 
