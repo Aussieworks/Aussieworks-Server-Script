@@ -7,7 +7,7 @@ when no value is inputed into the ?pi command, it will list all the players save
 ### ?tpp {peer_id} [peer_id] (PermMod)
 when one peer_id is inputed into the ?tpp command, it will teleport the player sending the command to the player whos peer_id has been inputed. if both values are provided then it will teleport the payer with the first inputed peer_id to the player with the second. if a player does not exist with any inputed peer_id's it will teleport them to the starter island at 0,0.
 #### alias: none
-### ?tpv {vehicle_id}
+### ?tpv {group_id}
 It teleports the sender of the command to the inputed vehicles vehicle_id location.
 #### alias: none
 ### ?auth
@@ -35,6 +35,9 @@ same as the ?pvp command but instead of toggling the senders pvp it toggles the 
 ### ?repair
 resets the vehicle state of all senders spawned vehicles, and announces it in chat. aka repairing the vehicles and restocking them.
 #### alias: none
+### ?flip
+flips all of your spawned vehicles upright
+#### alias: none
 ### ?as
 toggles senders antisteal and notifys them. when antisteal or as is true all their vehicles cant be taken back to the workbench, and when it is false they can betaken back to the workbench.
 #### alias: ?antisteal
@@ -44,6 +47,9 @@ same as the ?as command but intead of toggling the senders anitsteal it toggles 
 ## Misc
 ### ?pvplist
 announces all online players with pvp on in chat to the sender.
+#### alias: none
+### ?ui
+toggles players ui
 #### alias: none
 ### ?ut
 announces the uptime of the server in chat to the sender.
@@ -72,3 +78,9 @@ when peer id is inputed it will send the message to player with the inputed peer
 ### ?version
 shows script version and if sender had PermMod or greater it shows the current settings
 #### alias: ?ver
+### ?repairgsave (PermOwner)
+resets g_savedata. this is here to fix mistakes made when testing. requires script reload after use
+#### alias: none
+### ?tps
+announces the current tps to player
+#### alias: none
