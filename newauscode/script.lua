@@ -358,7 +358,7 @@ function checklimmiting(group_id, peer_id)
 				end
 			end
 		end
-		server.announce("[AusCode]", tostring(voxel_count))
+		server.announce("[AusCode]", voxel_count)
 		table.insert(chatMessages, {full_message=tostring(voxel_count),name="[AusCode]"})
 		if voxel_count > voxellimit then
 			server.despawnVehicleGroup(tonumber(group_id), true)
@@ -381,7 +381,7 @@ function calculateVoxels(group_id)
 			end
 		end
 	end
-	server.announce("[AusCode]", voxel_count)
+	server.announce("[AusCode]", tostring(voxel_count))
 	table.insert(chatMessages, {full_message=voxel_count,name="[AusCode]"})
 end
 
