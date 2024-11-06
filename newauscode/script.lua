@@ -300,7 +300,7 @@ function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
 	server.setVehicleTooltip(vehicle_id, "Owner: "..peer_id.." | "..name.."\nPVP: "..pvp.." | Group ID: "..group_id)
 	if peer_id ~= -1 and peer_id ~= nil then
 		if g_savedata["usercreations"][tostring(group_id)] == nil then
-			g_savedata["usercreations"][tostring(group_id)] = {OwnerID=peer_id, ownersteamid=getsteam_id(peer_id), Vehicleparts={}, vehicle_id=tostring(vehicle_id), cost=group_cost}
+			g_savedata["usercreations"][tostring(group_id)] = {OwnerID=peer_id, ownersteamid=getsteam_id(peer_id), Vehicleparts={}, cost=group_cost}
 		end
 		g_savedata["usercreations"][tostring(group_id)]["Vehicleparts"][tostring(vehicle_id)] = 1
 		local ownersteamid = getsteam_id(peer_id)
@@ -322,7 +322,7 @@ end
 
 -- on vehicle spawn 
 function onGroupSpawn(group_id, peer_id, x, y, z, group_cost)
-	if peer_id > -1 then
+	if peer_id > 0 then
 		local despawned = checklimmiting(group_id, peer_id)
 		if not despawned then
 			local name = server.getPlayerName(peer_id)
@@ -371,7 +371,18 @@ end
 
 -- calculate voxels
 function calculateVoxels(group_id)
-	
+	local voxel_count = 0
+	local group = group_id
+	for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+		if group_id == group then
+			for vehicle_id, _ in pairs(GroupData["Vehicleparts"]) do
+				local vehicle_components, is_success = server.getVehicleComponents(vehicle_id)
+				voxel_count = vehicle_components["voxels"] + voxel_count
+			end
+		end
+	end
+	server.announce("[AusCode]", voxel_count)
+	table.insert(chatMessages, {full_message=voxel_count,name="[AusCode]"})
 end
 
 -- vehicle despawned
@@ -664,14 +675,14 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			setPlayerdata("pvp", true, peer_id, false)
 			server.notify(user_peer_id, "[Server]", "PVP disabled", 6)
 			server.announce("[Server]", peer_id.." | "..name.." Has disabled there pvp")
-			table.insert(chatMessages, {full_message=peer_id.." | "..name.." Has disabled there pvp",name="[Server]"})
+			table.insert(chatMessages, {full_message=peer_id.." | "..name.." has disabled their pvp",name="[Server]"})
 			worked = true
 			pvp = "false"
 		elseif getPlayerdata("pvp", true, peer_id) == false then
 			setPlayerdata("pvp", true, peer_id, true)
 			server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
 			server.announce("[Server]", peer_id.." | "..name.." Has enabled there pvp")
-			table.insert(chatMessages, {full_message=peer_id.." | "..name.." Has enabled there pvp",name="[Server]"})
+			table.insert(chatMessages, {full_message=peer_id.." | "..name.." has enabled their pvp",name="[Server]"})
 			worked = true
 			pvp = "true"
 		end
@@ -679,7 +690,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			setPlayerdata("pvp", true, peer_id, true)
 			server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
 			server.announce("[Server]", peer_id.." | "..name.." Has enabled there pvp")
-			table.insert(chatMessages, {full_message=peer_id.." | "..name.." Has enabled there pvp",name="[Server]"})
+			table.insert(chatMessages, {full_message=peer_id.." | "..name.." has enabled their pvp",name="[Server]"})
 		end
 		local ownersteamid = getsteam_id(user_peer_id)
 		local vehicle_id = nil
@@ -708,28 +719,28 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				if getPlayerdata("pvp", true, one) == true then
 					setPlayerdata("pvp", true, one, false)
 					server.notify(one, "[Server]", "PVP disabled", 6)
-					server.announce("[Server]", one.." | "..name.." Has disabled there pvp")
-					table.insert(chatMessages, {full_message=one.." | "..name.." Has disabled there pvp",name="[Server]"})
+					server.announce("[Server]", one.." | "..name.." has disabled there pvp")
+					table.insert(chatMessages, {full_message=one.." | "..name.." has disabled their pvp",name="[Server]"})
 					pvp = "false"
 				elseif getPlayerdata("pvp", true, one) == false then
 					setPlayerdata("pvp", true, one, true)
 					server.notify(one, "[Server]", "PVP enabled", 5)
-					server.announce("[Server]", one.." | "..name.." Has enabled there pvp")
-					table.insert(chatMessages, {full_message=one.." | "..name.." Has enabled there pvp",name="[Server]"})
+					server.announce("[Server]", one.." | "..name.." has enabled there pvp")
+					table.insert(chatMessages, {full_message=one.." | "..name.." has enabled their pvp",name="[Server]"})
 					pvp = "true"
 				end
 			else
 				if two:lower() == "true" then
 					setPlayerdata("pvp", true, one, true)
 					server.notify(one, "[Server]", "PVP enabled", 5)
-					server.announce("[Server]", one.." | "..name.." Has enabled there pvp")
-					table.insert(chatMessages, {full_message=one.." | "..name.." Has enabled there pvp",name="[Server]"})
+					server.announce("[Server]", one.." | "..name.." has enabled there pvp")
+					table.insert(chatMessages, {full_message=one.." | "..name.." has enabled their pvp",name="[Server]"})
 					pvp = "true"
 				elseif two:lower() == "false" then
 					setPlayerdata("pvp", true, one, false)
 					server.notify(one, "[Server]", "PVP disabled", 6)
-					server.announce("[Server]", one.." | "..name.." Has disabled there pvp")
-					table.insert(chatMessages, {full_message=one.." | "..name.." Has disabled there pvp",name="[Server]"})
+					server.announce("[Server]", one.." | "..name.." has disabled there pvp")
+					table.insert(chatMessages, {full_message=one.." | "..name.." has disabled their pvp",name="[Server]"})
 					pvp = "false"
 				end
 			end
@@ -768,8 +779,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		if worked == true then
 			local name = server.getPlayerName(user_peer_id)
 			server.notify(user_peer_id, "[Server]", "Your vehicle/s has been repaired and restocked", 5)
-			server.announce("[Server]", user_peer_id.." | "..name.." Has repaired and restocked their vehicle/s")
-			table.insert(chatMessages, {full_message=user_peer_id.." | "..name.." Has repaired and restocked their vehicle/s",name="[Server]"})
+			server.announce("[Server]", user_peer_id.." | "..name.." has repaired and restocked their vehicle/s")
+			table.insert(chatMessages, {full_message=user_peer_id.." | "..name.." has repaired and restocked their vehicle/s",name="[Server]"})
 		else
 			server.notify(user_peer_id, "[Server]", "You have no vehicle/s to be repaired and restocked", 6)
 		end
@@ -1019,18 +1030,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 
 	if (command:lower() == "?test") then
 		if perms >= PermOwner then
-			local voxel_count = 0
-			local group = one
-			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-				if group_id == group then
-					for vehicle_id, _ in pairs(GroupData["Vehicleparts"]) do
-						local vehicle_components, is_success = server.getVehicleComponents(vehicle_id)
-						voxel_count = vehicle_components["voxels"] + voxel_count
-					end
-				end
-			end
-			server.announce("[AusCode]", voxel_count)
-			table.insert(chatMessages, {full_message=voxel_count,name="[AusCode]"})
+			calculateVoxels(one)
 		end
 	end
 
@@ -1038,6 +1038,12 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		commandfound = true
 		server.announce("[Server]", "TPS: "..string.format("%.0f",TPS))
 		table.insert(chatMessages, {full_message="TPS: "..string.format("%.0f",TPS),name="[Server]"})
+	end
+
+	if (command:lower() == "?rules") then
+		commandfound = true
+		server.announce("[Server]", "-=RULES=-\n1.Common sense rules apply\n2.No flares / radiation / emp\n3.Move vehicles out of the hanger if there are other people trying to spawn things\n4.Staff can and will take action acording to their judgement\n5.Despawn your vehicles after use\n6.Dont be mean to others", user_peer_id)
+		table.insert(chatMessages, {full_message="-=RULES=-\n1.Common sense rules apply\n2.No flares / radiation / emp\n3.Move vehicles out of the hanger if there are other people trying to spawn things\n4.Staff can and will take action acording to their judgement\n5.Despawn your vehicles after use\n6.Dont be mean to others",name="[Server]",topid=user_peer_id})
 	end
 --endregion
 
@@ -1150,12 +1156,12 @@ function updateUI()
 end
 
 -- loop functction. being tested.
-function runLoop(conditionCode, actionCode)
+function runLoop(varibles, conditionCode, actionCode)
     while true do
         -- Evaluate the condition
-        if conditionCode() then
+        if conditionCode(varibles) then
             -- Execute the action if the condition is true
-            actionCode()
+            actionCode(varibles)
 			return true
         end
         break
