@@ -1104,6 +1104,7 @@ function onTick(game_ticks)
 	tipMessages()
 	updateTPS(game_ticks)
 	updateUI()
+	loopManager()
 	
 	-- custom chat
 	if customchat then
@@ -1155,18 +1156,57 @@ function updateUI()
 	end
 end
 
--- loop functction. being tested.
-function runLoop(varibles, conditionCode, actionCode)
-    while true do
-        -- Evaluate the condition
-        if conditionCode(varibles) then
-            -- Execute the action if the condition is true
-            actionCode(varibles)
-			return true
+--region Loop Manager
+local loops = {}
+function loop(time, func)
+    local id = #loops + 1
+
+    loops[id] = {
+        callback = func,
+        time = time,
+        creationTime = server.getTimeMillisec(),
+        id = id,
+        paused = false
+    }
+
+    return {
+        properties = loops[id],
+
+        edit = function(self, newTime)
+            self.properties.time = newTime
+        end,
+
+        call = function(self)
+            self.properties.callback()
+        end,
+
+        remove = function(self)
+            loops[id] = nil
+            self = nil
+        end,
+
+        setPaused = function(self, state)
+            self.paused = state
+        end,
+
+        id = id
+    }
+end
+
+function removeLoop(id)
+    loops[id] = nil
+end
+
+function loopManager()
+    local timeNow = server.getTimeMillisec()
+    for _, v in pairs(loops) do
+        if timeNow >= v.creationTime + (v.time * 1000) and not v.paused then
+            v.callback(v.id)
+            v.creationTime = timeNow
         end
-        break
     end
 end
+--endregion
 
 -- on world load / scripts reloaded
 function onCreate(is_world_create)
