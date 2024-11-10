@@ -28,11 +28,11 @@ despawnonreload = false
 customchat = true
 subbodylimiting = true
 maxsubbodys = 15
-voxellimiting = false -- not working atm dont touch. will cause server crash if enabled atm.
-voxellimit = 15000
+voxellimiting = true -- not working atm dont touch. will cause server crash if enabled atm.
+voxellimit = 40000
 warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
-testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
+testingwarning = true -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 120  -- in seconds
 debug_enabled = false
 -- dont touch
@@ -176,6 +176,7 @@ end
 function onPlayerJoin(steam_id, name, peer_id, admin, auth)
 	server.announce("[Server]", peer_id.." | "..name.." joined the game")
 	table.insert(chatMessages, {full_message=peer_id.." | "..name.." joined the game",name="[Server]"})
+	server.setPopupScreen(peer_id, 1, "auth", true, "You arnt authed. run ?auth in chat to get authed", 0, 0)
 	if testingwarning then
 		server.announce("[AusCode]", "Script is being worked on and there will be many script reloads", peer_id)
 		table.insert(chatMessages, {full_message="Script is being worked on and there will be many script reloads",name="[AusCode]",topid=peer_id})
@@ -323,17 +324,39 @@ end
 -- on vehicle spawn 
 function onGroupSpawn(group_id, peer_id, x, y, z, group_cost)
 	if peer_id > 0 then
-		local despawned = checklimmiting(group_id, peer_id)
-		if not despawned then
-			local name = server.getPlayerName(peer_id)
-			server.announce("[Server]", peer_id.." | "..name.." spawned vehicle group: "..group_id.." Cost: $"..string.format("%.0f",group_cost))
-			table.insert(chatMessages, {full_message=peer_id.." | "..name.." spawned vehicle group: "..group_id.." Cost: $"..string.format("%.0f",group_cost),name="[Server]"})
+		loop(1.5,
+		function(id)
+			local groupdata, is_success = server.getVehicleGroup(group_id)
+			if is_success then
+				local despawned = checklimmiting(group_id, peer_id)
+				if not despawned then
+					local name = server.getPlayerName(peer_id)
+					server.announce("[Server]", peer_id.." | "..name.." spawned vehicle group: "..group_id.." Cost: $"..string.format("%.0f",group_cost))
+					table.insert(chatMessages, {full_message=peer_id.." | "..name.." spawned vehicle group: "..group_id.." Cost: $"..string.format("%.0f",group_cost),name="[Server]"})
+					removeLoop(id)
+				end
+			end
 		end
+		)
 	end
 end
 
 -- check limiting
 function checklimmiting(group_id, peer_id)
+	if voxellimiting then
+		local name = getPlayerdata("name", true, peer_id)
+		local voxel_count = calculateVoxels(group_id)
+		if voxel_count > voxellimit then
+			server.despawnVehicleGroup(tonumber(group_id), true)
+			server.announce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded block limit "..voxel_count.."/"..voxellimit)
+			table.insert(chatMessages, {full_message=peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded bloc limit "..voxel_count.."/"..voxellimit,name="[Server]"})
+			return true
+		end
+		if debug_enabled then
+			server.announce("[AusCode]", voxel_count)
+			table.insert(chatMessages, {full_message=tostring(voxel_count),name="[AusCode]"})
+		end
+	end	
 	if subbodylimiting then
 		local subbodys = server.getVehicleGroup(group_id)
 		if #subbodys > maxsubbodys then
@@ -348,41 +371,23 @@ function checklimmiting(group_id, peer_id)
 			return true
 		end
 	end
-	if voxellimiting then
-		local voxel_count = 0
-		for groupid, GroupData in pairs(g_savedata["usercreations"]) do
-			if groupid == group_id then
-				for vehicle_id, _ in pairs(GroupData["Vehicleparts"]) do
-					local vehicle_components, is_success = server.getVehicleComponents(vehicle_id)
-					voxel_count = vehicle_components["voxels"] + voxel_count
-				end
-			end
-		end
-		server.announce("[AusCode]", voxel_count)
-		table.insert(chatMessages, {full_message=tostring(voxel_count),name="[AusCode]"})
-		if voxel_count > voxellimit then
-			server.despawnVehicleGroup(tonumber(group_id), true)
-			server.announce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded block limit "..voxel_count.."/"..voxellimit)
-			table.insert(chatMessages, {full_message=peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded bloc limit "..voxel_count.."/"..voxellimit,name="[Server]"})
-			return true
-		end
-	end
 end
 
 -- calculate voxels
 function calculateVoxels(group_id)
 	local voxel_count = 0
-	local group = group_id
+	local group = tostring(group_id)
 	for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 		if group_id == group then
 			for vehicle_id, _ in pairs(GroupData["Vehicleparts"]) do
 				local vehicle_components, is_success = server.getVehicleComponents(vehicle_id)
-				voxel_count = vehicle_components["voxels"] + voxel_count
+				if is_success then
+					voxel_count = vehicle_components["voxels"] + voxel_count
+				end
 			end
 		end
 	end
-	server.announce("[AusCode]", tostring(voxel_count))
-	table.insert(chatMessages, {full_message=voxel_count,name="[AusCode]"})
+	return voxel_count
 end
 
 -- vehicle despawned
@@ -570,6 +575,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		if not is_auth then
 			server.addAuth(user_peer_id)
 			server.notify(user_peer_id, "[Server]", "You have been authed", 5)
+			server.removePopup(user_peer_id, 1)
 		else
 			server.notify(user_peer_id, "[Server]", "You are already authed", 6)
 		end
@@ -910,7 +916,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		if getPlayerdata("ui", true, user_peer_id) then
 			setPlayerdata("ui", true, user_peer_id, false)
 			server.notify(user_peer_id, "[Server]", "UI disabled", 6)
-			server.removePopup(user_peer_id, user_peer_id)
+			server.removePopup(user_peer_id, 0)
 		elseif not getPlayerdata("ui", true, user_peer_id) then
 			setPlayerdata("ui", true, user_peer_id, true)
 			server.notify(user_peer_id, "[Server]", "UI enabled", 5)
@@ -1029,8 +1035,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	end
 
 	if (command:lower() == "?test") then
+		commandfound = true
 		if perms >= PermOwner then
-			calculateVoxels(one)
+			
 		end
 	end
 
@@ -1147,7 +1154,7 @@ function updateUI()
 					local peer_id=X.id
 					local pvp = tostring(getPlayerdata("pvp", true, X.id)) or "unknown"
 					local pas = tostring(getPlayerdata("as", true, X.id)) or "unknown"
-					server.setPopupScreen(peer_id, peer_id, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
+					server.setPopupScreen(peer_id, 0, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
 				end
 			end
 			uitimer = 0
