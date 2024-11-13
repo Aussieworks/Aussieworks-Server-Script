@@ -10,4 +10,4 @@ script stuff
 [  ] Toggleable weather
 [  ] Make heartbeat http and backend for auto restarts
 Heart beat requires quite a bit onmy end so dont bother with that atm
-[  ] add bypasses for limmiting max vehicles ect
+[v] add bypasses for limmiting max vehicles ect
