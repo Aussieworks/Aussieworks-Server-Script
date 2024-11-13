@@ -28,7 +28,7 @@ despawnonreload = false
 customchat = true
 subbodylimiting = true
 maxsubbodys = 15
-voxellimiting = true -- not working atm dont touch. will cause server crash if enabled atm.
+voxellimiting = true
 voxellimit = 20000
 limitingbypass = false
 limitingbypassperm = PermOwner
@@ -501,30 +501,27 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?pi") then
 		commandfound = true
 		if one ~= nil then
-			local sid = ""
-			local name = ""
-			local pvp = ""
+			local sid = "Unknown"
+			local name = "Unknown"
+			local pvp = "Unknown"
+			local was = "Unknown"
+			local wui = "Unknown"
 			if perms >= PermAdmin then
 				local playerdata = getPlayerdata(nil, true, one)
 				sid = playerdata["steam_id"]    
 				name = playerdata["name"]
-				local warns = tonumber(playerdata["warns"])
-				if playerdata["as"] == true then
-					was = "True"
-				elseif playerdata["as"] == false then
-					was = "False"
-				else
-					was = "Unknown"
+				local warns = playerdata["warns"]
+				if playerdata["as"] ~= nil then
+					was = tostring(playerdata["as"])
 				end
-				if playerdata["pvp"] == true then
-					pvp = "True"
-				elseif playerdata["pvp"] == false then
-					pvp = "False"
-				else
-					pvp = "Unknown"
+				if playerdata["pvp"] ~= nil then
+					pvp = tostring(playerdata["pvp"])
 				end
-				server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nWarns: "..warns, user_peer_id)
-				table.insert(chatMessages, {full_message="Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nWarns: "..warns,name="[Server]",topid=user_peer_id})
+				if playerdata["ui"] ~= nil then
+					wui = tostring(playerdata["ui"])
+				end
+				server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns, user_peer_id)
+				table.insert(chatMessages, {full_message="Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns,name="[Server]",topid=user_peer_id})
 			end
 		else
 			local pid = ""
@@ -542,8 +539,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 					for sid, playedata in pairs(nosave["playerdata"]) do
 						pid = getpeer_id(sid)
 						name = playedata["name"]
-						server.announce("[Server]", "Peer id: "..tostring(pid).."\nName: "..tostring(name).."\nSteam id: "..tostring(sid), user_peer_id)
-						table.insert(chatMessages, {full_message="Peer id: "..tostring(pid).."\nName: "..tostring(name).."\nSteam id: "..tostring(sid),name="[Server]",topid=user_peer_id})
+						server.announce("[Server]", "Peer id: "..pid.."\nName: "..tostring(name).."\nSteam id: "..tostring(sid), user_peer_id)
+						table.insert(chatMessages, {full_message="Peer id: "..pid.."\nName: "..tostring(name).."\nSteam id: "..tostring(sid),name="[Server]",topid=user_peer_id})
 					end
 				end
 			end
@@ -806,6 +803,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		end
 	end
 
+	-- forces inputed peer ids vehicles to be repaired
 	if (command:lower() == "?forcerepair") then
 		commandfound = true
 		if perms >= PermAdmin then
@@ -851,6 +849,29 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		end
 		if not worked then
 			server.notify(user_peer_id, "[Server]", "No vehicle/s to unflipped", 6)
+		end
+	end
+
+	if (command:lower() == "?forceflip") then
+		commandfound = true
+		if perms >= PermMod then
+			local ownersteamid = getsteam_id(one)
+			local worked = false
+			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+				if GroupData["ownersteamid"] == ownersteamid then
+					for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
+						worked = true
+						VehicleMatrix = server.getVehiclePos(tonumber(vehicle_id))
+						x,y,z = matrix.position(VehicleMatrix)
+						server.setVehiclePos(tonumber(vehicle_id), matrix.translation(x,y+1,z))
+						server.notify(user_peer_id, "[Server]", "Unflipped vehicle/s", 5)
+						server.notify(one, "[Server]", "Unflipped vehicle/s", 5)
+					end
+				end
+			end
+			if not worked then
+				server.notify(user_peer_id, "[Server]", "No vehicle/s to unflipped", 6)
+			end
 		end
 	end
 
