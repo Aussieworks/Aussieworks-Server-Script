@@ -20,7 +20,7 @@ chatMessages = {}
 hiddencommands = {{"?msg",true},{"?warn",true},{"?pi",true},{"?pc",true},{"?forcepvp",true},{"?forceas",true},{"?forcerepair",true}} -- list of commands to dont want to show to everyone in chat
 -- settings
 discordlink = "discord.gg/snJyn6V2Qs"
-maxMessages = 150
+maxMessages = 250
 playermaxvehicles = 1
 unlockislands = true
 playerdatasave = true
@@ -29,10 +29,12 @@ customchat = true
 subbodylimiting = true
 maxsubbodys = 15
 voxellimiting = true -- not working atm dont touch. will cause server crash if enabled atm.
-voxellimit = 30000
+voxellimit = 20000
+limitingbypass = false
+limitingbypassperm = PermOwner
 warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
-testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
+testingwarning = true -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 120  -- in seconds
 debug_enabled = false
 -- dont touch
@@ -184,6 +186,10 @@ function onPlayerJoin(steam_id, name, peer_id, admin, auth)
 	server.removeAuth(peer_id)
 	sendChat = true
 	playerint(steam_id, peer_id)
+	if getPlayerdata("ui", true, peer_id) == true then
+		setPlayerdata("ui", true, peer_id, false)
+		setPlayerdata("ui", true, peer_id, true)
+	end
 end
 
 -- player leave
@@ -244,7 +250,6 @@ if customchat then
 			end
 		end
 	end
-
 	function printChatMessages()
 		for _, chat in ipairs(chatMessages) do
 			if chat.topid == nil then
@@ -270,12 +275,10 @@ if customchat then
 		end
 		logChatMessage(name, message)
 		sendChat = true
-		local wsc = "false"
-		if sendChat then
-			wsc = "true"
+		if debug_enabled then
+			server.announce("[Debug]", tostring(sendChat))
+			table.insert(chatMessages, {full_message=tostring(sendChat),name="[Debug]"})
 		end
-		server.announce("[Server]", wsc, 0)
-		table.insert(chatMessages, {full_message=wsc,name="[Server]",topid=0})
 	end
 end
 --endregion
@@ -347,32 +350,38 @@ end
 
 -- check limiting
 function checklimmiting(group_id, peer_id)
-	if voxellimiting then
-		local name = getPlayerdata("name", true, peer_id)
-		local voxel_count = calculateVoxels(group_id)
-		if voxel_count > voxellimit then
-			server.despawnVehicleGroup(tonumber(group_id), true)
-			server.announce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded block limit "..voxel_count.."/"..voxellimit)
-			table.insert(chatMessages, {full_message=peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded bloc limit "..voxel_count.."/"..voxellimit,name="[Server]"})
-			return true
-		end
-		if debug_enabled then
-			server.announce("[AusCode]", voxel_count)
-			table.insert(chatMessages, {full_message=tostring(voxel_count),name="[AusCode]"})
-		end
-	end	
-	if subbodylimiting then
-		local subbodys = server.getVehicleGroup(group_id)
-		if #subbodys > maxsubbodys then
-			if debug_enabled then
-				server.announce("[Server]", #subbodys)
-				table.insert(chatMessages, {full_message=#subbodys,name="[Server]"})
+	local bypassperms = 0
+	if limitingbypass then
+		bypassperms = getPlayerdata("perms", true, peer_id)
+	end
+	if bypassperms < limitingbypassperm then
+		if voxellimiting then
+			local name = getPlayerdata("name", true, peer_id)
+			local voxel_count = calculateVoxels(group_id)
+			if voxel_count > voxellimit then
+				server.despawnVehicleGroup(tonumber(group_id), true)
+				server.announce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded block limit "..voxel_count.."/"..voxellimit)
+				table.insert(chatMessages, {full_message=peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded block limit "..voxel_count.."/"..voxellimit,name="[Server]"})
+				return true
 			end
-			name = server.getPlayerName(peer_id)
-			server.announce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded subbody limit "..#subbodys.."/"..maxsubbodys)
-			table.insert(chatMessages, {full_message=peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded subbody limit "..#subbodys.."/"..maxsubbodys,name="[Server]"})
-			server.despawnVehicleGroup(tonumber(group_id), true)
-			return true
+			if debug_enabled then
+				server.announce("[AusCode]", voxel_count)
+				table.insert(chatMessages, {full_message=tostring(voxel_count),name="[AusCode]"})
+			end
+		end	
+		if subbodylimiting then
+			local subbodys = server.getVehicleGroup(group_id)
+			if #subbodys > maxsubbodys then
+				if debug_enabled then
+					server.announce("[Server]", #subbodys)
+					table.insert(chatMessages, {full_message=#subbodys,name="[Server]"})
+				end
+				name = server.getPlayerName(peer_id)
+				server.announce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded subbody limit "..#subbodys.."/"..maxsubbodys)
+				table.insert(chatMessages, {full_message=peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded subbody limit "..#subbodys.."/"..maxsubbodys,name="[Server]"})
+				server.despawnVehicleGroup(tonumber(group_id), true)
+				return true
+			end
 		end
 	end
 end
