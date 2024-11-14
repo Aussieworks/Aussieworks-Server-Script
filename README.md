@@ -16,5 +16,5 @@ This is the repo for the [Aussieworks](https://github.com/Aussieworks) server sc
 ## 📜 Docs
 * [Commands](Docs/Commands.md)
 ## ✨ Contributers
-* [ChickenMst](github.com/chickenmst)
-* [Sedrowow](github.com/sedrowow)
+* [ChickenMst](https://github.com/chickenmst)
+* [Sedrowow](https://github.com/sedrowow)
