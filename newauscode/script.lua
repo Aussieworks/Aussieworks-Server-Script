@@ -44,7 +44,7 @@ tipstep = 1
 TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
-scriptversion = "v1.6.1-Testing"
+scriptversion = "v1.6.1"
 
 
 
