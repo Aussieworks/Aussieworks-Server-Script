@@ -12,7 +12,7 @@ PermAdmin = 3
 PermOwner = 4
 
 -- admin list. formating: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
-adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561198371768441",PermAdmin},{"76561199032157360",PermAdmin},{"76561199477098490",PermMod}}
+adminlist = {}
 
 -- tables
 nosave = {playerdata={}} -- list that doesnt save
