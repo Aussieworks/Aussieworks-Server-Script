@@ -1,7 +1,7 @@
 # Commands
 this document goes through all the current commands and what they do. [optinonal varible] {required varible} (perm required to run command if any)
 ## Player
-### ?pi [peer_id]
+### ?pi [peer_id] (PermAdmin)
 when no value is inputed into the ?pi command, it will list all the players saved in playerdata along with their peer_id, name and steam_id. when a peer_id is inputed it will show their peer_id, name, steam_id, antisteal status and pvp status.
 #### alias: none
 ### ?tpp {peer_id} [peer_id] (PermMod)
@@ -11,7 +11,7 @@ when one peer_id is inputed into the ?tpp command, it will teleport the player s
 It teleports the sender of the command to the inputed vehicles vehicle_id location.
 #### alias: none
 ### ?auth
-if the sender of the command has not been authed it will give them auth and notify them. else it will tell them they already have been authed.
+if the sender of the command has not been authed it will give them auth and notify them. else it will tell them they already have been authed. also removes the popup reminding them to auth.
 #### alias: none
 ### ?warn {peer_id} [reason] (PermMod)
 removes auth from the player with the inputed peer_id, along with notifying them about the warn and the reason for the warn if their is one, and despawning all their vehicles.
@@ -35,8 +35,14 @@ same as the ?pvp command but instead of toggling the senders pvp it toggles the 
 ### ?repair
 resets the vehicle state of all senders spawned vehicles, and announces it in chat. aka repairing the vehicles and restocking them.
 #### alias: none
+### ?forcerepair {peer_id} (PermAdmin)
+same as the ?repair command but instead of repairing the senders vehicles it repairs the vehicles owned by the inputed peer_id.
+#### alias: none
 ### ?flip
 flips all of your spawned vehicles upright
+#### alias: none
+### ?forceflip {peer_id} (PermAdmin)
+same as the ?flip command but it flips the vehicles of the inputed peer_id
 #### alias: none
 ### ?as
 toggles senders antisteal and notifys them. when antisteal or as is true all their vehicles cant be taken back to the workbench, and when it is false they can betaken back to the workbench.
@@ -73,14 +79,17 @@ used in the testing of the customchat. when run by someone with PermAdmin it pri
 when run by someone with PermMod and it prints a bunch of blank line and then a little banner at the bottem saying who the chat was cleared by.
 #### alias: none
 ### ?msg {peer_id} {message}
-when peer id is inputed it will send the message to player with the inputed peer id. this message is only shown to the sender and the person with the inputed peer id
+when peer id is inputed it will send the message to player with the inputed peer id. this message is only shown to the sender and the person with the inputed peer id.
 #### alias: none
 ### ?version
-shows script version and if sender had PermMod or greater it shows the current settings
+shows script version and if sender had PermMod or greater it shows the current settings.
 #### alias: ?ver
 ### ?repairgsave (PermOwner)
-resets g_savedata. this is here to fix mistakes made when testing. requires script reload after use
+resets g_savedata. this is here to fix mistakes made when testing. requires script reload after use.
 #### alias: none
 ### ?tps
-announces the current tps to player
+announces the current tps to player.
+#### alias: none
+### ?rules
+announces the servers rules to the sender
 #### alias: none
