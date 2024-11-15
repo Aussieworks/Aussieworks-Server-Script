@@ -34,7 +34,7 @@ limitingbypass = false
 limitingbypassperm = PermOwner
 warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
-testingwarning = true -- used to tell players that the scripts are in development and their might be frequent script reloads
+testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 120  -- in seconds
 debug_enabled = false
 -- dont touch
