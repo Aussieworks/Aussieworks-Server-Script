@@ -11,6 +11,6 @@ script stuff
 | Voxel / tps based antilag | 🟡 |
 | Ui | 🟢 |
 | Tps limiting | 🔴 |
-| Toggleable weather | 🟡 |
+| Custom weather | 🟡 |
 | Make heartbeat http and backend for auto restarts | 🔴 |
 | Add bypasses for limmiting max vehicles ect | 🟢 |
