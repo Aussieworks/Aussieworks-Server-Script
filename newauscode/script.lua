@@ -1,3 +1,4 @@
+---@diagnostic disable: lowercase-global
 -- g_savedata table that persists between game sessions
 g_savedata = {
 	playerdata={},
@@ -26,17 +27,19 @@ unlockislands = true
 playerdatasave = true
 despawnonreload = false
 customchat = true
+customweatherevents = false
+customweatherfrequency = 60 -- in seconds
 subbodylimiting = true
 maxsubbodys = 15
 voxellimiting = true
-voxellimit = 20000
+voxellimit = 25000
 limitingbypass = false
 limitingbypassperm = PermOwner
 warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
-testingwarning = true -- used to tell players that the scripts are in development and their might be frequent script reloads
+testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 120  -- in seconds
-debug_enabled = false
+debug_enabled = false -- currently not fully implemented
 -- dont touch
 tiptimer = 0
 uitimer = 0
@@ -44,7 +47,7 @@ tipstep = 1
 TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
-scriptversion = "v1.6.1-Testing"
+scriptversion = "v1.6.2-Testing"
 
 
 
@@ -55,7 +58,7 @@ function playerint(steam_id, peer_id)
 	pn = friendlystring(pn)
 	if playerdatasave then
 		if g_savedata["playerdata"][tostring(steam_id)] == nil then
-			g_savedata["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=tostring(peer_id), name=tostring(pn), as=true, pvp=false, ui=true, warns=0}
+			g_savedata["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=tostring(peer_id), name=tostring(pn), as=true, pvp=false, ui=false, warns=0}
 			for _, sid in pairs(adminlist) do
 				if tostring(sid[1]) == tostring(steam_id) then
 					g_savedata["playerdata"][tostring(steam_id)]["perms"] = sid[2]
@@ -77,11 +80,7 @@ function playerint(steam_id, peer_id)
 			else
 				g_savedata["playerdata"][tostring(steam_id)]["pvp"] = g_savedata["playerdata"][tostring(steam_id)]["pvp"]
 			end
-			if g_savedata["playerdata"][tostring(steam_id)]["ui"] == nil then
-				g_savedata["playerdata"][tostring(steam_id)]["ui"] = true
-			else
-				g_savedata["playerdata"][tostring(steam_id)]["ui"] = g_savedata["playerdata"][tostring(steam_id)]["ui"]
-			end
+			g_savedata["playerdata"][tostring(steam_id)]["ui"] = false
 			if g_savedata["playerdata"][tostring(steam_id)]["warns"] == nil then
 				g_savedata["playerdata"][tostring(steam_id)]["warns"] = "0"
 			else
@@ -98,7 +97,7 @@ function playerint(steam_id, peer_id)
 		end
 	end
 	if playerdatasave == false then
-		nosave["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=peer_id, name=tostring(pn), as=true, pvp=false, ui=true, warns=0}
+		nosave["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=peer_id, name=tostring(pn), as=true, pvp=false, ui=false, warns=0}
 		for _, sid in pairs(adminlist) do
 			if tostring(sid[1]) == tostring(steam_id) then
 				nosave["playerdata"][tostring(steam_id)]["perms"] = sid[2]
@@ -186,10 +185,6 @@ function onPlayerJoin(steam_id, name, peer_id, admin, auth)
 	server.removeAuth(peer_id)
 	sendChat = true
 	playerint(steam_id, peer_id)
-	if getPlayerdata("ui", true, peer_id) == true then
-		setPlayerdata("ui", true, peer_id, false)
-		setPlayerdata("ui", true, peer_id, true)
-	end
 end
 
 -- player leave
@@ -329,7 +324,7 @@ end
 -- on vehicle spawn 
 function onGroupSpawn(group_id, peer_id, x, y, z, group_cost)
 	if peer_id > 0 then
-		loop(1.5,
+		loop(1,
 		function(id)
 			local groupdata, is_success = server.getVehicleGroup(group_id)
 			if is_success then
@@ -586,6 +581,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			server.addAuth(user_peer_id)
 			server.notify(user_peer_id, "[Server]", "You have been authed", 5)
 			server.removePopup(user_peer_id, 1)
+			setPlayerdata("ui", true, user_peer_id, true)
 		else
 			server.notify(user_peer_id, "[Server]", "You are already authed", 6)
 			server.removePopup(user_peer_id, 1)
@@ -668,7 +664,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		commandfound = true
 		if perms >= PermAdmin then
 			local vehiclespawned = false
-			for group_id, GroupData in pairs(g_savedata["usercreations"]) do 
+			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 				vehiclespawned = true
 				server.despawnVehicleGroup(tonumber(group_id), true)
 			end
@@ -1099,13 +1095,39 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?test") then
 		commandfound = true
 		if perms >= PermOwner then
+			loop(customweatherfrequency,
+			function()
+				local sev = math.random(1, 3)
+				local f = 0
+				local r = 0
+				local w = 0
+				if sev == 1 then
+					f = math.random(0, 20)
+					r = math.random(0, 20)
+					w = math.random(0, 20)
+				elseif sev == 2 then
+					f = math.random(0, 35)
+					r = math.random(10, 50)
+					w = math.random(30, 50)
+				elseif sev == 3 then
+					f = math.random(10, 45)
+					r = math.random(60, 90)
+					w = math.random(60, 100)
+				end
+				f=f/100
+				r=r/100
+				w=w/100
+				server.announce("[Weather]", "Serverity: "..sev.." Fog: "..string.format("%.0f",(f*100)).."% Rain: "..string.format("%.0f",(r*100)).."% Wind: "..string.format("%.0f",(w*100)).."%")
+				table.insert(chatMessages, {full_message="Serverity: "..sev.." Fog: "..string.format("%.0f",(f*100)).."% Rain: "..string.format("%.0f",(r*100)).."% Wind: "..string.format("%.0f",(w*100)).."%",name="[Weather]"})
+				server.setWeather(f, r, w)
+			end)
 		end
 	end
 
 	if (command:lower() == "?tps") then
 		commandfound = true
-		server.announce("[Server]", "TPS: "..string.format("%.0f",TPS))
-		table.insert(chatMessages, {full_message="TPS: "..string.format("%.0f",TPS),name="[Server]"})
+		server.announce("[Server]", "TPS: "..string.format("%.0f",TPS), user_peer_id)
+		table.insert(chatMessages, {full_message="TPS: "..string.format("%.0f",TPS),name="[Server]",topid=user_peer_id})
 	end
 
 	if (command:lower() == "?rules") then
@@ -1209,6 +1231,11 @@ function updateTPS(game_ticks)
     end
 end
 
+-- function that handles the custom weather
+function customweatherhandler()
+
+end
+
 -- ui function. displays tps uptime and players as and pvp
 function updateUI()
 	if (countitems(server.getPlayers()) - 1) >= 1 then
@@ -1290,6 +1317,9 @@ function onCreate(is_world_create)
 	table.insert(chatMessages, {full_message="AusCode reloaded",name="[AusCode]"})
 	if unlockislands then
 		server.setGameSetting("unlock_all_islands", true)
+	end
+	if customweatherevents then
+		server.setWeather(0, 0, 0)
 	end
 	server.setGameSetting("vehicle_damage", true)
 	server.setGameSetting("clear_fow", true)
