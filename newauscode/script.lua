@@ -27,7 +27,7 @@ unlockislands = true
 playerdatasave = true
 despawnonreload = false
 customchat = true
-customweatherevents = false
+customweatherevents = true
 customweatherfrequency = 60 -- in seconds
 subbodylimiting = true
 maxsubbodys = 15
@@ -70,22 +70,10 @@ function playerint(steam_id, peer_id)
 		elseif g_savedata["playerdata"][tostring(steam_id)] ~= nil then
 			g_savedata["playerdata"][tostring(steam_id)]["peer_id"] = peer_id
 			g_savedata["playerdata"][tostring(steam_id)]["name"] = pn
-			if g_savedata["playerdata"][tostring(steam_id)]["as"] == nil then
-				g_savedata["playerdata"][tostring(steam_id)]["as"] = true
-			else
-				g_savedata["playerdata"][tostring(steam_id)]["as"] = g_savedata["playerdata"][tostring(steam_id)]["as"]
-			end
-			if g_savedata["playerdata"][tostring(steam_id)]["pvp"] == nil then
-				g_savedata["playerdata"][tostring(steam_id)]["pvp"] = false
-			else
-				g_savedata["playerdata"][tostring(steam_id)]["pvp"] = g_savedata["playerdata"][tostring(steam_id)]["pvp"]
-			end
-			g_savedata["playerdata"][tostring(steam_id)]["ui"] = false
-			if g_savedata["playerdata"][tostring(steam_id)]["warns"] == nil then
-				g_savedata["playerdata"][tostring(steam_id)]["warns"] = "0"
-			else
-				g_savedata["playerdata"][tostring(steam_id)]["warns"] = tostring(g_savedata["playerdata"][tostring(steam_id)]["warns"])
-			end
+			g_savedata["playerdata"][tostring(steam_id)]["as"] = g_savedata["playerdata"][tostring(steam_id)]["as"] or true
+			g_savedata["playerdata"][tostring(steam_id)]["pvp"] = g_savedata["playerdata"][tostring(steam_id)]["pvp"] or false
+			g_savedata["playerdata"][tostring(steam_id)]["ui"] = g_savedata["playerdata"][tostring(steam_id)]["ui"] or false
+			g_savedata["playerdata"][tostring(steam_id)]["warns"] = tostring(g_savedata["playerdata"][tostring(steam_id)]["warns"]) or "0"
 			for _, sid in pairs(adminlist) do
 				if tostring(sid[1]) == tostring(steam_id) then
 					g_savedata["playerdata"][tostring(steam_id)]["perms"] = sid[2]
@@ -1095,32 +1083,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?test") then
 		commandfound = true
 		if perms >= PermOwner then
-			loop(customweatherfrequency,
-			function()
-				local sev = math.random(1, 3)
-				local f = 0
-				local r = 0
-				local w = 0
-				if sev == 1 then
-					f = math.random(0, 20)
-					r = math.random(0, 20)
-					w = math.random(0, 20)
-				elseif sev == 2 then
-					f = math.random(0, 35)
-					r = math.random(10, 50)
-					w = math.random(30, 50)
-				elseif sev == 3 then
-					f = math.random(10, 45)
-					r = math.random(60, 90)
-					w = math.random(60, 100)
-				end
-				f=f/100
-				r=r/100
-				w=w/100
-				server.announce("[Weather]", "Serverity: "..sev.." Fog: "..string.format("%.0f",(f*100)).."% Rain: "..string.format("%.0f",(r*100)).."% Wind: "..string.format("%.0f",(w*100)).."%")
-				table.insert(chatMessages, {full_message="Serverity: "..sev.." Fog: "..string.format("%.0f",(f*100)).."% Rain: "..string.format("%.0f",(r*100)).."% Wind: "..string.format("%.0f",(w*100)).."%",name="[Weather]"})
-				server.setWeather(f, r, w)
-			end)
+			customweatherhandler(one)
 		end
 	end
 
@@ -1232,8 +1195,50 @@ function updateTPS(game_ticks)
 end
 
 -- function that handles the custom weather
-function customweatherhandler()
-
+function customweatherhandler(state)
+	if tostring(state) == "true" then
+		customweatherevents = true
+		server.announce("[CustomWeather]", "Weather loop created")
+		table.insert(chatMessages, {full_message="Weather loop created",name="[CustomWeather]"})
+		loop(customweatherfrequency,
+		function(id)
+			if customweatherevents ~= true then
+				server.announce("[CustomWeather]", "Weather loop destroyed")
+				table.insert(chatMessages, {full_message="Weather loop destroyed",name="[CustomWeather]"})
+				server.setWeather(0, 0, 0)
+				removeLoop(id)
+				return
+			end
+			local sev = math.random(1, 3)
+			local f = 0
+			local r = 0
+			local w = 0
+			if sev == 1 then
+				f = math.random(0, 20)
+				r = math.random(0, 10)
+				w = math.random(0, 20)
+			elseif sev == 2 then
+				f = math.random(0, 35)
+				r = math.random(10, 50)
+				w = math.random(30, 50)
+			elseif sev == 3 then
+				f = math.random(10, 45)
+				r = math.random(60, 90)
+				w = math.random(60, 100)
+			end
+			f=f/100
+			r=r/100
+			w=w/100
+			server.announce("[Weather]", "Serverity: "..sev.." Fog: "..string.format("%.0f",(f*100)).."% Rain: "..string.format("%.0f",(r*100)).."% Wind: "..string.format("%.0f",(w*100)).."%")
+			table.insert(chatMessages, {full_message="Serverity: "..sev.." Fog: "..string.format("%.0f",(f*100)).."% Rain: "..string.format("%.0f",(r*100)).."% Wind: "..string.format("%.0f",(w*100)).."%",name="[Weather]"})
+			server.setWeather(f, r, w)
+			
+		end)
+	elseif tostring(state) == "false" then
+		server.announce("[CustomWeather]", "Custom weather disabled")
+		table.insert(chatMessages, {full_message="Custom weather disabled",name="[CustomWeather]"})
+		customweatherevents = false
+	end
 end
 
 -- ui function. displays tps uptime and players as and pvp
