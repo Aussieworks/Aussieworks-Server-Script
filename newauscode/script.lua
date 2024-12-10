@@ -27,7 +27,7 @@ unlockislands = true
 playerdatasave = true
 despawnonreload = false
 customchat = true
-customweatherevents = true
+customweatherevents = false
 customweatherfrequency = 60 -- in seconds
 subbodylimiting = true
 maxsubbodys = 15
@@ -569,7 +569,14 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			server.addAuth(user_peer_id)
 			server.notify(user_peer_id, "[Server]", "You have been authed", 5)
 			server.removePopup(user_peer_id, 1)
-			setPlayerdata("ui", true, user_peer_id, true)
+			setPlayerdata("ui", true, user_peer_id, false)
+			server.removePopup(user_peer_id, 0)
+			loop(3,
+				function(id)
+					setPlayerdata("ui", true, user_peer_id, true)
+					removeLoop(id)
+				end
+			)
 		else
 			server.notify(user_peer_id, "[Server]", "You are already authed", 6)
 			server.removePopup(user_peer_id, 1)
@@ -1198,13 +1205,17 @@ end
 function customweatherhandler(state)
 	if tostring(state) == "true" then
 		customweatherevents = true
-		server.announce("[CustomWeather]", "Weather loop created")
-		table.insert(chatMessages, {full_message="Weather loop created",name="[CustomWeather]"})
+		if debug_enabled then
+			server.announce("[Debug]", "Custom weather loop created")
+			table.insert(chatMessages, {full_message="Custom weather loop created",name="[Debug]"})
+		end
 		loop(customweatherfrequency,
 		function(id)
 			if customweatherevents ~= true then
-				server.announce("[CustomWeather]", "Weather loop destroyed")
-				table.insert(chatMessages, {full_message="Weather loop destroyed",name="[CustomWeather]"})
+				if debug_enabled then
+					server.announce("[Debug]", "Custom weather loop destroyed")
+					table.insert(chatMessages, {full_message="Custom weather loop destroyed",name="[Debug]"})
+				end
 				server.setWeather(0, 0, 0)
 				removeLoop(id)
 				return
@@ -1229,14 +1240,17 @@ function customweatherhandler(state)
 			f=f/100
 			r=r/100
 			w=w/100
-			server.announce("[Weather]", "Serverity: "..sev.." Fog: "..string.format("%.0f",(f*100)).."% Rain: "..string.format("%.0f",(r*100)).."% Wind: "..string.format("%.0f",(w*100)).."%")
-			table.insert(chatMessages, {full_message="Serverity: "..sev.." Fog: "..string.format("%.0f",(f*100)).."% Rain: "..string.format("%.0f",(r*100)).."% Wind: "..string.format("%.0f",(w*100)).."%",name="[Weather]"})
+			if debug_enabled then
+				server.announce("[Debug]", "Serverity: "..sev.." Fog: "..string.format("%.0f",(f*100)).."% Rain: "..string.format("%.0f",(r*100)).."% Wind: "..string.format("%.0f",(w*100)).."%")
+				table.insert(chatMessages, {full_message="Serverity: "..sev.." Fog: "..string.format("%.0f",(f*100)).."% Rain: "..string.format("%.0f",(r*100)).."% Wind: "..string.format("%.0f",(w*100)).."%",name="[Debug]"})
+			end
 			server.setWeather(f, r, w)
-			
 		end)
 	elseif tostring(state) == "false" then
-		server.announce("[CustomWeather]", "Custom weather disabled")
-		table.insert(chatMessages, {full_message="Custom weather disabled",name="[CustomWeather]"})
+		if debug_enabled then
+			server.announce("[Debug]", "Custom weather disabled")
+			table.insert(chatMessages, {full_message="Custom weather disabled",name="[Debug]"})
+		end
 		customweatherevents = false
 	end
 end
@@ -1325,6 +1339,7 @@ function onCreate(is_world_create)
 	end
 	if customweatherevents then
 		server.setWeather(0, 0, 0)
+		customweatherhandler(customweatherevents)
 	end
 	server.setGameSetting("vehicle_damage", true)
 	server.setGameSetting("clear_fow", true)
