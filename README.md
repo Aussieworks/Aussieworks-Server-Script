@@ -15,6 +15,7 @@ This is the repo for the [Aussieworks](https://github.com/Aussieworks) server sc
 - PVP
 ## 📜 Docs
 * [Commands](Docs/Commands.md)
+* [Installation](Docs/Installation.md)
 ## ✨ Contributers
 * [ChickenMst](https://github.com/chickenmst)
 * [Sedrowow](https://github.com/sedrowow)
