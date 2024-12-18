@@ -29,6 +29,7 @@ despawnonreload = false
 customchat = true
 customweatherevents = false
 customweatherfrequency = 60 -- in seconds
+forcepvp = false -- if true then pvp will be on by default and the ?pvp command will be dissabled
 subbodylimiting = true
 maxsubbodys = 15
 voxellimiting = true
@@ -67,6 +68,9 @@ function playerint(steam_id, peer_id)
 			if g_savedata["playerdata"][tostring(steam_id)]["perms"] == nil then
 				g_savedata["playerdata"][tostring(steam_id)]["perms"] = PermNone
 			end
+			if forcepvp then
+				g_savedata["playerdata"][tostring(steam_id)]["pvp"] = true
+			end
 		elseif g_savedata["playerdata"][tostring(steam_id)] ~= nil then
 			g_savedata["playerdata"][tostring(steam_id)]["peer_id"] = peer_id
 			g_savedata["playerdata"][tostring(steam_id)]["name"] = pn
@@ -82,6 +86,9 @@ function playerint(steam_id, peer_id)
 			if g_savedata["playerdata"][tostring(steam_id)]["perms"] == nil then
 				g_savedata["playerdata"][tostring(steam_id)]["perms"] = PermNone
 			end
+			if forcepvp then
+				g_savedata["playerdata"][tostring(steam_id)]["pvp"] = true
+			end
 		end
 	end
 	if playerdatasave == false then
@@ -93,6 +100,9 @@ function playerint(steam_id, peer_id)
 		end
 		if nosave["playerdata"][tostring(steam_id)]["perms"] == nil then
 			nosave["playerdata"][tostring(steam_id)]["perms"] = PermNone
+		end
+		if forcepvp then
+			g_savedata["playerdata"][tostring(steam_id)]["pvp"] = true
 		end
 	end
 end
@@ -696,43 +706,45 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 
 	-- pvp command
 	if (command:lower() == "?pvp") then
-		commandfound = true
-		local peer_id = user_peer_id
-		local worked = false
-		local pvp
-		local name = server.getPlayerName(peer_id)
-		if getPlayerdata("pvp", true, peer_id) == true then
-			setPlayerdata("pvp", true, peer_id, false)
-			server.notify(user_peer_id, "[Server]", "PVP disabled", 6)
-			server.announce("[Server]", peer_id.." | "..name.." Has disabled there pvp")
-			table.insert(chatMessages, {full_message=peer_id.." | "..name.." has disabled their pvp",name="[Server]"})
-			worked = true
-			pvp = "false"
-		elseif getPlayerdata("pvp", true, peer_id) == false then
-			setPlayerdata("pvp", true, peer_id, true)
-			server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
-			server.announce("[Server]", peer_id.." | "..name.." Has enabled there pvp")
-			table.insert(chatMessages, {full_message=peer_id.." | "..name.." has enabled their pvp",name="[Server]"})
-			worked = true
-			pvp = "true"
-		end
-		if worked ~= true then
-			setPlayerdata("pvp", true, peer_id, true)
-			server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
-			server.announce("[Server]", peer_id.." | "..name.." Has enabled there pvp")
-			table.insert(chatMessages, {full_message=peer_id.." | "..name.." has enabled their pvp",name="[Server]"})
-		end
-		local ownersteamid = getsteam_id(user_peer_id)
-		local vehicle_id = nil
-		local name = server.getPlayerName(peer_id)
-		for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-			if GroupData["ownersteamid"] == ownersteamid then
-				for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
-					server.setVehicleTooltip(vehicle_id, "Owner: "..peer_id.." | "..name.."\nPVP: "..pvp.." | Group ID: "..group_id)
-					if getPlayerdata("pvp", true, peer_id) == true then
-						server.setVehicleInvulnerable(vehicle_id, false)
-					elseif getPlayerdata("pvp", true, peer_id) == false then
-						server.setVehicleInvulnerable(vehicle_id, true)
+		if not forcepvp then
+			commandfound = true
+			local peer_id = user_peer_id
+			local worked = false
+			local pvp
+			local name = server.getPlayerName(peer_id)
+			if getPlayerdata("pvp", true, peer_id) == true then
+				setPlayerdata("pvp", true, peer_id, false)
+				server.notify(user_peer_id, "[Server]", "PVP disabled", 6)
+				server.announce("[Server]", peer_id.." | "..name.." Has disabled there pvp")
+				table.insert(chatMessages, {full_message=peer_id.." | "..name.." has disabled their pvp",name="[Server]"})
+				worked = true
+				pvp = "false"
+			elseif getPlayerdata("pvp", true, peer_id) == false then
+				setPlayerdata("pvp", true, peer_id, true)
+				server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
+				server.announce("[Server]", peer_id.." | "..name.." Has enabled there pvp")
+				table.insert(chatMessages, {full_message=peer_id.." | "..name.." has enabled their pvp",name="[Server]"})
+				worked = true
+				pvp = "true"
+			end
+			if worked ~= true then
+				setPlayerdata("pvp", true, peer_id, true)
+				server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
+				server.announce("[Server]", peer_id.." | "..name.." Has enabled there pvp")
+				table.insert(chatMessages, {full_message=peer_id.." | "..name.." has enabled their pvp",name="[Server]"})
+			end
+			local ownersteamid = getsteam_id(user_peer_id)
+			local vehicle_id = nil
+			local name = server.getPlayerName(peer_id)
+			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+				if GroupData["ownersteamid"] == ownersteamid then
+					for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
+						server.setVehicleTooltip(vehicle_id, "Owner: "..peer_id.." | "..name.."\nPVP: "..pvp.." | Group ID: "..group_id)
+						if getPlayerdata("pvp", true, peer_id) == true then
+							server.setVehicleInvulnerable(vehicle_id, false)
+						elseif getPlayerdata("pvp", true, peer_id) == false then
+							server.setVehicleInvulnerable(vehicle_id, true)
+						end
 					end
 				end
 			end
@@ -1126,6 +1138,45 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		commandfound = true
 		server.announce("[Server]", "-=RULES=-\n1.Common sense rules apply\n2.No flares / radiation / emp\n3.Move vehicles out of the hanger if there are other people trying to spawn things\n4.Staff can and will take action acording to their judgement\n5.Despawn your vehicles after use\n6.Dont be mean to others", user_peer_id)
 		table.insert(chatMessages, {full_message="-=RULES=-\n1.Common sense rules apply\n2.No flares / radiation / emp\n3.Move vehicles out of the hanger if there are other people trying to spawn things\n4.Staff can and will take action acording to their judgement\n5.Despawn your vehicles after use\n6.Dont be mean to others",name="[Server]",topid=user_peer_id})
+	end
+
+	if (command:lower() == "?explodep") or (command:lower() == "?explodeplayer") then
+		if perms >= PermMod then
+			commandfound = true
+			if one ~= nil then
+				local Ppos, worked = server.getPlayerPos(one)
+				if not worked then
+					server.notify(user_peer_id, "[Server]", "Invalid peer id")
+					return
+				elseif worked then
+					if two == nil then
+						server.spawnExplosion(Ppos, 0.1)
+					elseif two ~= nil then
+						server.spawnExplosion(Ppos, tonumber(two))
+					end
+				end
+			end
+		end
+	end
+
+	if (command:lower() == "?explode") then
+		if perms >= PermMod then
+			commandfound = true
+			if one ~= nil then
+				local parts = server.getVehicleGroup(one)
+				local Vpos, worked = server.getVehiclePos(parts[1], 0, 0, 0)
+				if not worked then
+					server.notify(user_peer_id, "[Server]", "Invalid Group id")
+					return
+				elseif worked then
+					if two == nil then
+						server.spawnExplosion(Vpos, 0.1)
+					elseif two ~= nil then
+						server.spawnExplosion(Vpos, tonumber(two))
+					end
+				end
+			end
+		end
 	end
 --endregion
 
