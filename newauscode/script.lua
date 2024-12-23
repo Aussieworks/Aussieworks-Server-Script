@@ -27,6 +27,7 @@ unlockislands = true
 playerdatasave = true
 despawnonreload = false
 customchat = true
+showcommandsinchat = true
 customweatherevents = false
 customweatherfrequency = 60 -- in seconds
 forcepvp = false -- if true then pvp will be on by default and the ?pvp command will be dissabled
@@ -34,6 +35,8 @@ subbodylimiting = true
 maxsubbodys = 15
 voxellimiting = true
 voxellimit = 25000
+despawndropeditems = true
+despawndropeditemsdelay = 10
 limitingbypass = false
 limitingbypassperm = PermOwner
 warnactionthreashold = 3
@@ -48,7 +51,7 @@ tipstep = 1
 TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
-scriptversion = "v1.6.2-Testing"
+scriptversion = "v1.6.3-Testing"
 
 
 
@@ -340,6 +343,9 @@ function onGroupSpawn(group_id, peer_id, x, y, z, group_cost)
 						removeLoop(id)
 					end
 				end
+				if despawned then
+					removeLoop(id)
+				end
 			end
 		end
 		)
@@ -463,34 +469,36 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	sendChat = true
 	
 	-- shows command players run
-	local playername = server.getPlayerName(user_peer_id)
-	local name = ""
-	if perms == PermOwner then
-		name = "[Owner] "..playername
-	elseif perms == PermAdmin then
-		name = "[Admin] "..playername
-	elseif perms == PermMod then
-		name = "[Mod] "..playername
-	elseif perms == PermAuth then
-		name = "[Player] "..playername
-	elseif perms == PermNone then
-		name = "[Player] "..playername
-	end
-	if not customchat then
-		name = playername
-	end
-	
-	local hidecommand = false
-	for c, commanddata in pairs(hiddencommands) do
-		if command:lower() == commanddata[1] then
-			if commanddata[2] then
-				hidecommand = true
+	if showcommandsinchat then
+		local playername = server.getPlayerName(user_peer_id)
+		local name = ""
+		if perms == PermOwner then
+			name = "[Owner] "..playername
+		elseif perms == PermAdmin then
+			name = "[Admin] "..playername
+		elseif perms == PermMod then
+			name = "[Mod] "..playername
+		elseif perms == PermAuth then
+			name = "[Player] "..playername
+		elseif perms == PermNone then
+			name = "[Player] "..playername
+		end
+		if not customchat then
+			name = playername
+		end
+		
+		local hidecommand = false
+		for c, commanddata in pairs(hiddencommands) do
+			if command:lower() == commanddata[1] then
+				if commanddata[2] then
+					hidecommand = true
+				end
 			end
 		end
-	end
-	if not hidecommand then
-		server.announce(name, "> "..full_message)
-		table.insert(chatMessages, {full_message="> "..full_message,name=name})
+		if not hidecommand then
+			server.announce(name, "> "..full_message)
+			table.insert(chatMessages, {full_message="> "..full_message,name=name})
+		end
 	end
 
 
@@ -1272,6 +1280,18 @@ function updateTPS(game_ticks)
         TIME = tempo
         TICKS = 0
     end
+end
+
+
+function onEquipmentDrop(character_object_id, equipment_object_id, EQUIPMENT_ID)
+	if despawndropeditems then
+		loop(despawndropeditemsdelay,
+		function(id)
+			server.despawnObject(equipment_object_id, true)
+			removeLoop(id)
+		end
+		)
+	end
 end
 
 -- function that handles the custom weather
