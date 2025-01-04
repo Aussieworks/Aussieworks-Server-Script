@@ -14,4 +14,4 @@ script stuff
 | Custom weather | 🟡 |
 | Make heartbeat http and backend for auto restarts | 🔴 |
 | Add bypasses for limmiting max vehicles ect | 🟢 |
-| Add item deletion when drop | 🔴 |
+| Add item deletion when drop | 🟢 |
