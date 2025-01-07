@@ -79,7 +79,11 @@ function playerint(steam_id, peer_id)
 		elseif g_savedata["playerdata"][tostring(steam_id)] ~= nil then
 			g_savedata["playerdata"][tostring(steam_id)]["peer_id"] = peer_id
 			if allownicknames then
-				g_savedata["playerdata"][tostring(steam_id)]["name"] = g_savedata["playerdata"][tostring(steam_id)]["name"]
+				if g_savedata["playerdata"][tostring(steam_id)]["nicked"] == true then
+					g_savedata["playerdata"][tostring(steam_id)]["name"] = g_savedata["playerdata"][tostring(steam_id)]["name"]
+				else
+					g_savedata["playerdata"][tostring(steam_id)]["name"] = pn
+				end
 			else
 				g_savedata["playerdata"][tostring(steam_id)]["name"] = pn
 			end
