@@ -18,7 +18,7 @@ adminlist = {}
 -- tables
 nosave = {playerdata={}} -- list that doesnt save
 chatMessages = {}
-hiddencommands = {{"?msg",true},{"?warn",true},{"?pi",true},{"?pc",true},{"?forcepvp",true},{"?forceas",true},{"?forcerepair",true}} -- list of commands to dont want to show to everyone in chat
+hiddencommands = {{"?msg",true},{"?warn",true},{"?pi",true},{"?pc",true},{"?forcepvp",true},{"?forceas",true},{"?forcerepair",true},{"?ep",true},{"?e",true}} -- list of commands to dont want to show to everyone in chat
 -- settings
 discordlink = "discord.gg/snJyn6V2Qs"
 maxMessages = 250
@@ -27,6 +27,7 @@ unlockislands = true
 playerdatasave = true
 despawnonreload = false
 customchat = true
+showcommandsinchat = true
 customweatherevents = false
 customweatherfrequency = 60 -- in seconds
 forcepvp = false -- if true then pvp will be on by default and the ?pvp command will be dissabled
@@ -34,10 +35,14 @@ subbodylimiting = true
 maxsubbodys = 15
 voxellimiting = true
 voxellimit = 25000
+despawndropeditems = true
+despawndropeditemsdelay = 10
 limitingbypass = false
 limitingbypassperm = PermOwner
 warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
+allownicknames = false
+permtonick = PermAdmin
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 120  -- in seconds
 debug_enabled = false -- currently not fully implemented
@@ -48,7 +53,7 @@ tipstep = 1
 TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
-scriptversion = "v1.6.2"
+scriptversion = "v1.6.3"
 
 
 
@@ -59,7 +64,7 @@ function playerint(steam_id, peer_id)
 	pn = friendlystring(pn)
 	if playerdatasave then
 		if g_savedata["playerdata"][tostring(steam_id)] == nil then
-			g_savedata["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=tostring(peer_id), name=tostring(pn), as=true, pvp=false, ui=false, warns=0}
+			g_savedata["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=tostring(peer_id), name=tostring(pn), as=true, pvp=false, ui=false, warns=0, nicked=false}
 			for _, sid in pairs(adminlist) do
 				if tostring(sid[1]) == tostring(steam_id) then
 					g_savedata["playerdata"][tostring(steam_id)]["perms"] = sid[2]
@@ -73,11 +78,20 @@ function playerint(steam_id, peer_id)
 			end
 		elseif g_savedata["playerdata"][tostring(steam_id)] ~= nil then
 			g_savedata["playerdata"][tostring(steam_id)]["peer_id"] = peer_id
-			g_savedata["playerdata"][tostring(steam_id)]["name"] = pn
+			if allownicknames then
+				if g_savedata["playerdata"][tostring(steam_id)]["nicked"] == true then
+					g_savedata["playerdata"][tostring(steam_id)]["name"] = g_savedata["playerdata"][tostring(steam_id)]["name"]
+				else
+					g_savedata["playerdata"][tostring(steam_id)]["name"] = pn
+				end
+			else
+				g_savedata["playerdata"][tostring(steam_id)]["name"] = pn
+			end
 			g_savedata["playerdata"][tostring(steam_id)]["as"] = g_savedata["playerdata"][tostring(steam_id)]["as"] or true
 			g_savedata["playerdata"][tostring(steam_id)]["pvp"] = g_savedata["playerdata"][tostring(steam_id)]["pvp"] or false
 			g_savedata["playerdata"][tostring(steam_id)]["ui"] = g_savedata["playerdata"][tostring(steam_id)]["ui"] or false
 			g_savedata["playerdata"][tostring(steam_id)]["warns"] = tostring(g_savedata["playerdata"][tostring(steam_id)]["warns"]) or "0"
+			g_savedata["playerdata"][tostring(steam_id)]["nicked"] = g_savedata["playerdata"][tostring(steam_id)]["nicked"] or false
 			for _, sid in pairs(adminlist) do
 				if tostring(sid[1]) == tostring(steam_id) then
 					g_savedata["playerdata"][tostring(steam_id)]["perms"] = sid[2]
@@ -253,6 +267,7 @@ if customchat then
 		end
 	end
 	function onChatMessage(peer_id, sender_name, message)
+		local sender_name = getPlayerdata("name", true, peer_id)
 		local perms = getPlayerdata("perms", true, peer_id)
 		local name = ""
 		if perms == PermOwner then
@@ -294,7 +309,7 @@ function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
 			server.setVehicleInvulnerable(vehicle_id, true)
 			pvp = "false"
 		end
-		local name = server.getPlayerName(peer_id)
+		local name = getPlayerdata("name", true, peer_id)
 		server.setVehicleTooltip(vehicle_id, "Owner: "..peer_id.." | "..name.."\nPVP: "..pvp.." | Group ID: "..group_id)
 		if peer_id ~= -1 and peer_id ~= nil then
 			if g_savedata["usercreations"][tostring(group_id)] == nil then
@@ -322,14 +337,14 @@ end
 -- on vehicle spawn 
 function onGroupSpawn(group_id, peer_id, x, y, z, group_cost)
 	if peer_id > 0 then
-		loop(1,
+		loop(0.1,
 		function(id)
 			local groupdata, is_success = server.getVehicleGroup(group_id)
 			if is_success then
 				local despawned = checklimmiting(group_id, peer_id)
 				if not despawned then
 					if g_savedata["usercreations"][tostring(group_id)] ~= nil then
-						local name = server.getPlayerName(peer_id)
+						local name = getPlayerdata("name", true, peer_id)
 						if group_cost == 0 then
 							server.announce("[Server]", peer_id.." | "..name.." spawned vehicle group: "..group_id)
 							table.insert(chatMessages, {full_message=peer_id.." | "..name.." spawned vehicle group: "..group_id,name="[Server]"})
@@ -339,6 +354,9 @@ function onGroupSpawn(group_id, peer_id, x, y, z, group_cost)
 						end
 						removeLoop(id)
 					end
+				end
+				if despawned then
+					removeLoop(id)
 				end
 			end
 		end
@@ -463,34 +481,36 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	sendChat = true
 	
 	-- shows command players run
-	local playername = server.getPlayerName(user_peer_id)
-	local name = ""
-	if perms == PermOwner then
-		name = "[Owner] "..playername
-	elseif perms == PermAdmin then
-		name = "[Admin] "..playername
-	elseif perms == PermMod then
-		name = "[Mod] "..playername
-	elseif perms == PermAuth then
-		name = "[Player] "..playername
-	elseif perms == PermNone then
-		name = "[Player] "..playername
-	end
-	if not customchat then
-		name = playername
-	end
-	
-	local hidecommand = false
-	for c, commanddata in pairs(hiddencommands) do
-		if command:lower() == commanddata[1] then
-			if commanddata[2] then
-				hidecommand = true
+	if showcommandsinchat then
+		local playername = getPlayerdata("name", true, user_peer_id)
+		local name = ""
+		if perms == PermOwner then
+			name = "[Owner] "..playername
+		elseif perms == PermAdmin then
+			name = "[Admin] "..playername
+		elseif perms == PermMod then
+			name = "[Mod] "..playername
+		elseif perms == PermAuth then
+			name = "[Player] "..playername
+		elseif perms == PermNone then
+			name = "[Player] "..playername
+		end
+		if not customchat then
+			name = playername
+		end
+		
+		local hidecommand = false
+		for c, commanddata in pairs(hiddencommands) do
+			if command:lower() == commanddata[1] then
+				if commanddata[2] then
+					hidecommand = true
+				end
 			end
 		end
-	end
-	if not hidecommand then
-		server.announce(name, "> "..full_message)
-		table.insert(chatMessages, {full_message="> "..full_message,name=name})
+		if not hidecommand then
+			server.announce(name, "> "..full_message)
+			table.insert(chatMessages, {full_message="> "..full_message,name=name})
+		end
 	end
 
 
@@ -504,9 +524,10 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			local pvp = "Unknown"
 			local was = "Unknown"
 			local wui = "Unknown"
+			local nms = "Unknown"
 			if perms >= PermAdmin then
 				local playerdata = getPlayerdata(nil, true, one)
-				sid = playerdata["steam_id"]    
+				sid = playerdata["steam_id"]
 				name = playerdata["name"]
 				local warns = playerdata["warns"]
 				if playerdata["as"] ~= nil then
@@ -518,8 +539,11 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				if playerdata["ui"] ~= nil then
 					wui = tostring(playerdata["ui"])
 				end
-				server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns, user_peer_id)
-				table.insert(chatMessages, {full_message="Peer id: "..tostring(one).."\nName: "..name.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns,name="[Server]",topid=user_peer_id})
+				if playerdata["nicked"] ~= nil then
+					nms = tostring(playerdata["nicked"])
+				end
+				server.announce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nNicked: "..nms.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns, user_peer_id)
+				table.insert(chatMessages, {full_message="Peer id: "..tostring(one).."\nName: "..name.."\nNicked: "..nms.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns,name="[Server]",topid=user_peer_id})
 			end
 		else
 			local pid = ""
@@ -711,7 +735,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			local peer_id = user_peer_id
 			local worked = false
 			local pvp
-			local name = server.getPlayerName(peer_id)
+			local name = getPlayerdata("name", true, peer_id)
 			if getPlayerdata("pvp", true, peer_id) == true then
 				setPlayerdata("pvp", true, peer_id, false)
 				server.notify(user_peer_id, "[Server]", "PVP disabled", 6)
@@ -735,7 +759,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			end
 			local ownersteamid = getsteam_id(user_peer_id)
 			local vehicle_id = nil
-			local name = server.getPlayerName(peer_id)
+			local name = getPlayerdata("name", true, peer_id)
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 				if GroupData["ownersteamid"] == ownersteamid then
 					for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
@@ -756,7 +780,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		commandfound = true
 		if perms >= PermAdmin then
 			local pvp
-			local name = server.getPlayerName(one)
+			local name = getPlayerdata("name", true, one)
 			if two == nil then
 				if getPlayerdata("pvp", true, one) == true then
 					setPlayerdata("pvp", true, one, false)
@@ -788,7 +812,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			end
 			local ownersteamid = getsteam_id(one)
 			local vehicle_id = nil
-			local name = server.getPlayerName(one)
+			local name = getPlayerdata("name", true, one)
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 				if GroupData["ownersteamid"] == ownersteamid then
 					for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
@@ -819,7 +843,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			end
 		end
 		if worked == true then
-			local name = server.getPlayerName(user_peer_id)
+			local name = getPlayerdata("name", true, user_peer_id)
 			server.notify(user_peer_id, "[Server]", "Your vehicle/s has been repaired and restocked", 5)
 			server.announce("[Server]", user_peer_id.." | "..name.." has repaired and restocked their vehicle/s")
 			table.insert(chatMessages, {full_message=user_peer_id.." | "..name.." has repaired and restocked their vehicle/s",name="[Server]"})
@@ -845,7 +869,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 					end
 				end
 				if worked == true then
-					local name = server.getPlayerName(one)
+					local name = getPlayerdata("name", true, one)
 					server.notify(one, "[Server]", "Your vehicle/s has been repaired and restocked", 5)
 					server.announce("[Server]", one.." | "..name.." has repaired and restocked their vehicle/s")
 					table.insert(chatMessages, {full_message=one.." | "..name.." has repaired and restocked their vehicle/s",name="[Server]"})
@@ -1020,8 +1044,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- lists all the commands
 	if (command:lower() == "?help") then
 		commandfound = true
-		server.announce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group", user_peer_id)
-		table.insert(chatMessages, {full_message="-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group",name="[Server]",topid=user_peer_id})
+		server.announce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group".."\n|?nick [reset/set] {nickname}".."\n|sets nickname and removes it", user_peer_id)
+		table.insert(chatMessages, {full_message="-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group".."\n|?nick [reset/set] {nickname}".."\n|sets nickname and removes it",name="[Server]",topid=user_peer_id})
 		if perms >= PermMod then
 			server.announce("[Server]", "-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehicles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehicles of inputed players ids".."\n|?forceas [peer_id] {true/false}".."\n|toggles as for inputed peer id".."\n|?forcepvp [peer_id] {true/false}".."\n|toggles pvp for inputed peer id".."\n|?clearchat".."\n|clears chat", user_peer_id)
 			table.insert(chatMessages, {full_message="-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehicles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehicles of inputed players ids".."\n|?forceas [peer_id] {true/false}".."\n|toggles as for inputed peer id".."\n|?forcepvp [peer_id] {true/false}".."\n|toggles pvp for inputed peer id",name="[Server]",topid=user_peer_id})
@@ -1069,6 +1093,34 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		end
 	end
 
+	-- sets and enables nicknames
+	if (command:lower() == "?nick") then
+		if allownicknames then
+			if perms >= permtonick then
+				commandfound = true
+				if one:lower() == "set" then
+					local nm = full_message:gsub("^%?nick%s*", ""):gsub("^%?", ""):gsub(one.." ", "")
+					if nm ~= "" then
+						server.announce("[NickName]", "Nickname has been set to: "..nm, user_peer_id)
+						table.insert(chatMessages, {full_message="Nickname has been set to: "..nm,name="[NickName]",topid=user_peer_id})
+						setPlayerdata("name", true, user_peer_id, nm)
+						setPlayerdata("nicked", true, user_peer_id, true)
+					end
+				elseif one:lower() == "reset" or "remove" then
+					if getPlayerdata("nicked", true, user_peer_id) then
+						setPlayerdata("name", true, user_peer_id, friendlystring(server.getPlayerName(user_peer_id)))
+						setPlayerdata("nicked", true, user_peer_id, false)
+						server.announce("[NickName]", "Nickname has been removed", user_peer_id)
+						table.insert(chatMessages, {full_message="Nickname has been removed",name="[NickName]",topid=user_peer_id})
+					else
+						server.announce("[NickName]", "You arn't nicked", user_peer_id)
+						table.insert(chatMessages, {full_message="You arn't nicked",name="[NickName]",topid=user_peer_id})
+					end
+				end
+			end
+		end
+	end
+
 	-- clear chat
 	if (command:lower() ==  "?clearchat") then
 		commandfound = true
@@ -1106,8 +1158,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		server.announce("[AusCode]", "|AusCode version: "..scriptversion, user_peer_id)
 		table.insert(chatMessages, {full_message="|AusCode version: "..scriptversion,name="[AusCode]",topid=user_peer_id})
 		if perms >= PermMod then
-			server.announce("[AusCode]", "|Script info: ".."\n|Playerdatasave: "..tostring(playerdatasave).."\n|Customchat: "..tostring(customchat).."\n|Despawnonreload: "..tostring(despawnonreload).."\n|Playermaxvehicles: "..tostring(playermaxvehicles).."\n|Subbodylimiting: "..tostring(subbodylimiting).."\n|Maxsubbodys: "..tostring(maxsubbodys).."\n|Voxellimiting: "..tostring(voxellimiting).."\n|Voxellimit: "..voxellimit.."\n|Warnthreashold: "..tostring(warnactionthreashold).."\n|Warnaction: "..tostring(warnaction).."\n|Uptime: "..ut, user_peer_id)
-			table.insert(chatMessages, {full_message="|Script info: ".."\n|Playerdatasave: "..tostring(playerdatasave).."\n|Customchat: "..tostring(customchat).."\n|Despawnonreload: "..tostring(despawnonreload).."\n|Playermaxvehicles: "..tostring(playermaxvehicles).."\n|Subbodylimiting: "..tostring(subbodylimiting).."\n|Maxsubbodys: "..tostring(maxsubbodys).."\n|Voxellimiting: "..tostring(voxellimiting).."\n|Voxellimit: "..voxellimit.."\n|Warnthreashold: "..tostring(warnactionthreashold).."\n|Warnaction: "..tostring(warnaction).."\n|Uptime: "..ut,name="[AusCode]",topid=user_peer_id})
+			server.announce("[AusCode]", "|Script info: ".."\n|Playerdatasave: "..tostring(playerdatasave).."\n|Customchat: "..tostring(customchat).."\n|Despawnonreload: "..tostring(despawnonreload).."\n|Playermaxvehicles: "..tostring(playermaxvehicles).."\n|Subbodylimiting: "..tostring(subbodylimiting).."\n|Maxsubbodys: "..tostring(maxsubbodys).."\n|Voxellimiting: "..tostring(voxellimiting).."\n|Voxellimit: "..voxellimit.."\n|Warnthreashold: "..tostring(warnactionthreashold).."\n|Warnaction: "..tostring(warnaction).."\n|Showcommandsinchat: "..tostring(showcommandsinchat).."\n|Despawndropeditems: "..tostring(despawndropeditems).."\n|Despawndropeditemsdelay: "..tostring(despawndropeditemsdelay).."\n|Allownicknames: "..tostring(allownicknames).."\n|Uptime: "..ut, user_peer_id)
+			table.insert(chatMessages, {full_message="|Script info: ".."\n|Playerdatasave: "..tostring(playerdatasave).."\n|Customchat: "..tostring(customchat).."\n|Despawnonreload: "..tostring(despawnonreload).."\n|Playermaxvehicles: "..tostring(playermaxvehicles).."\n|Subbodylimiting: "..tostring(subbodylimiting).."\n|Maxsubbodys: "..tostring(maxsubbodys).."\n|Voxellimiting: "..tostring(voxellimiting).."\n|Voxellimit: "..voxellimit.."\n|Warnthreashold: "..tostring(warnactionthreashold).."\n|Warnaction: "..tostring(warnaction).."\n|Showcommandsinchat: "..tostring(showcommandsinchat).."\n|Despawndropeditems: "..tostring(despawndropeditems).."\n|Despawndropeditemsdelay: "..tostring(despawndropeditemsdelay).."\n|Allownicknames: "..tostring(allownicknames).."\n|Uptime: "..ut,name="[AusCode]",topid=user_peer_id})
 		end
 	end
 
@@ -1140,7 +1192,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		table.insert(chatMessages, {full_message="-=RULES=-\n1.Common sense rules apply\n2.No flares / radiation / emp\n3.Move vehicles out of the hanger if there are other people trying to spawn things\n4.Staff can and will take action acording to their judgement\n5.Despawn your vehicles after use\n6.Dont be mean to others",name="[Server]",topid=user_peer_id})
 	end
 
-	if (command:lower() == "?explodep") or (command:lower() == "?explodeplayer") then
+	if (command:lower() == "?ep") or (command:lower() == "?explodeplayer") then
 		if perms >= PermMod then
 			commandfound = true
 			if one ~= nil then
@@ -1159,7 +1211,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		end
 	end
 
-	if (command:lower() == "?explode") then
+	if (command:lower() == "?explode") or (command:lower() == "?e") then
 		if perms >= PermMod then
 			commandfound = true
 			if one ~= nil then
@@ -1272,6 +1324,18 @@ function updateTPS(game_ticks)
         TIME = tempo
         TICKS = 0
     end
+end
+
+
+function onEquipmentDrop(character_object_id, equipment_object_id, EQUIPMENT_ID)
+	if despawndropeditems then
+		loop(despawndropeditemsdelay,
+		function(id)
+			server.despawnObject(equipment_object_id, true)
+			removeLoop(id)
+		end
+		)
+	end
 end
 
 -- function that handles the custom weather
