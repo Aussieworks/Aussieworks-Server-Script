@@ -18,7 +18,7 @@ adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"7
 -- tables
 nosave = {playerdata={}} -- list that doesnt save
 chatMessages = {}
-hiddencommands = {{"?msg",true},{"?warn",true},{"?pi",true},{"?pc",true},{"?forcepvp",true},{"?forceas",true},{"?forcerepair",true}} -- list of commands to dont want to show to everyone in chat
+hiddencommands = {{"?msg",true},{"?warn",true},{"?pi",true},{"?pc",true},{"?forcepvp",true},{"?forceas",true},{"?forcerepair",true},{"?ep",true},{"?e",true}} -- list of commands to dont want to show to everyone in chat
 -- settings
 discordlink = "discord.gg/snJyn6V2Qs"
 maxMessages = 250
@@ -41,7 +41,7 @@ limitingbypass = false
 limitingbypassperm = PermOwner
 warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
-allownicknames = true
+allownicknames = false
 permtonick = PermAdmin
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 120  -- in seconds
@@ -337,7 +337,7 @@ end
 -- on vehicle spawn 
 function onGroupSpawn(group_id, peer_id, x, y, z, group_cost)
 	if peer_id > 0 then
-		loop(1,
+		loop(0.1,
 		function(id)
 			local groupdata, is_success = server.getVehicleGroup(group_id)
 			if is_success then
@@ -1158,8 +1158,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		server.announce("[AusCode]", "|AusCode version: "..scriptversion, user_peer_id)
 		table.insert(chatMessages, {full_message="|AusCode version: "..scriptversion,name="[AusCode]",topid=user_peer_id})
 		if perms >= PermMod then
-			server.announce("[AusCode]", "|Script info: ".."\n|Playerdatasave: "..tostring(playerdatasave).."\n|Customchat: "..tostring(customchat).."\n|Despawnonreload: "..tostring(despawnonreload).."\n|Playermaxvehicles: "..tostring(playermaxvehicles).."\n|Subbodylimiting: "..tostring(subbodylimiting).."\n|Maxsubbodys: "..tostring(maxsubbodys).."\n|Voxellimiting: "..tostring(voxellimiting).."\n|Voxellimit: "..voxellimit.."\n|Warnthreashold: "..tostring(warnactionthreashold).."\n|Warnaction: "..tostring(warnaction).."\n|Uptime: "..ut, user_peer_id)
-			table.insert(chatMessages, {full_message="|Script info: ".."\n|Playerdatasave: "..tostring(playerdatasave).."\n|Customchat: "..tostring(customchat).."\n|Despawnonreload: "..tostring(despawnonreload).."\n|Playermaxvehicles: "..tostring(playermaxvehicles).."\n|Subbodylimiting: "..tostring(subbodylimiting).."\n|Maxsubbodys: "..tostring(maxsubbodys).."\n|Voxellimiting: "..tostring(voxellimiting).."\n|Voxellimit: "..voxellimit.."\n|Warnthreashold: "..tostring(warnactionthreashold).."\n|Warnaction: "..tostring(warnaction).."\n|Uptime: "..ut,name="[AusCode]",topid=user_peer_id})
+			server.announce("[AusCode]", "|Script info: ".."\n|Playerdatasave: "..tostring(playerdatasave).."\n|Customchat: "..tostring(customchat).."\n|Despawnonreload: "..tostring(despawnonreload).."\n|Playermaxvehicles: "..tostring(playermaxvehicles).."\n|Subbodylimiting: "..tostring(subbodylimiting).."\n|Maxsubbodys: "..tostring(maxsubbodys).."\n|Voxellimiting: "..tostring(voxellimiting).."\n|Voxellimit: "..voxellimit.."\n|Warnthreashold: "..tostring(warnactionthreashold).."\n|Warnaction: "..tostring(warnaction).."\n|Showcommandsinchat: "..tostring(showcommandsinchat).."\n|Despawndropeditems: "..tostring(despawndropeditems).."\n|Despawndropeditemsdelay: "..tostring(despawndropeditemsdelay).."\n|Allownicknames: "..tostring(allownicknames).."\n|Uptime: "..ut, user_peer_id)
+			table.insert(chatMessages, {full_message="|Script info: ".."\n|Playerdatasave: "..tostring(playerdatasave).."\n|Customchat: "..tostring(customchat).."\n|Despawnonreload: "..tostring(despawnonreload).."\n|Playermaxvehicles: "..tostring(playermaxvehicles).."\n|Subbodylimiting: "..tostring(subbodylimiting).."\n|Maxsubbodys: "..tostring(maxsubbodys).."\n|Voxellimiting: "..tostring(voxellimiting).."\n|Voxellimit: "..voxellimit.."\n|Warnthreashold: "..tostring(warnactionthreashold).."\n|Warnaction: "..tostring(warnaction).."\n|Showcommandsinchat: "..tostring(showcommandsinchat).."\n|Despawndropeditems: "..tostring(despawndropeditems).."\n|Despawndropeditemsdelay: "..tostring(despawndropeditemsdelay).."\n|Allownicknames: "..tostring(allownicknames).."\n|Uptime: "..ut,name="[AusCode]",topid=user_peer_id})
 		end
 	end
 
