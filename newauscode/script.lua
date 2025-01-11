@@ -601,6 +601,24 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		end
 	end
 
+	-- teleport vehicle to player
+	if (command:lower() == "?tvp") then
+		commandfound = true
+		local worked = false
+		if one ~= nil then
+			local parts = server.getVehicleGroup(one)
+			local vmatrix = server.getVehiclePos(parts[1], 0, 0, 0)
+			local x,y,z = matrix.position(vmatrix)
+			server.setVehiclePos(parts[1], user_peer_id, x, y+10, z)
+			worked = true
+		elseif one == nil then
+			server.notify(user_peer_id, "[Server]", "You have to input the vehicles group id of the vehicle you want to go to", 6)
+		end
+		if worked == true then
+			server.notify(user_peer_id, "[Server]", "Vehicle group: "..one.." has been teleported to you", 5)
+		end
+	end
+
 	-- auth command
 	if (command:lower() == "?auth") then
 		commandfound = true
