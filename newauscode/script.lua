@@ -20,7 +20,7 @@ nosave = {playerdata={}} -- list that doesnt save
 chatMessages = {}
 hiddencommands = {{"?msg",true},{"?warn",true},{"?pi",true},{"?pc",true},{"?forcepvp",true},{"?forceas",true},{"?forcerepair",true},{"?ep",true},{"?e",true}} -- list of commands to dont want to show to everyone in chat
 -- settings
-discordlink = "discord.gg/snJyn6V2Qs"
+discordlink = "discord.aussieworks.xyz"
 maxMessages = 250
 playermaxvehicles = 1
 unlockislands = true
@@ -53,7 +53,7 @@ tipstep = 1
 TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
-scriptversion = "v1.6.3-Testing"
+scriptversion = "v1.6.4-Testing"
 
 
 
@@ -1081,8 +1081,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- discord command
 	if (command:lower() == "?disc") or (command:lower() == "?discord")then
 		commandfound = true
-		server.announce("[Server]", discordlink, user_peer_id)
-		table.insert(chatMessages, {full_message=discordlink,name="[Server]",topid=user_peer_id})
+		server.announce("[DiscordLink]", discordlink, user_peer_id)
+		table.insert(chatMessages, {full_message=discordlink,name="[DiscordLink]",topid=user_peer_id})
 	end
 
 	-- print chatMessages
