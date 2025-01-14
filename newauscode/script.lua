@@ -34,10 +34,10 @@ forcepvp = false -- if true then pvp will be on by default and the ?pvp command 
 subbodylimiting = true
 maxsubbodys = 15
 voxellimiting = true
-voxellimit = 2500
+voxellimit = 25000
 despawndropeditems = true
 despawndropeditemsdelay = 10
-limitingbypass = false
+limitingbypass = true
 limitingbypassperm = PermOwner
 warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
@@ -334,7 +334,7 @@ end
 -- on vehicle spawn 
 function onGroupSpawn(group_id, peer_id, x, y, z, group_cost)
 	if peer_id > 0 then
-		loop(0.1,
+		loop(0.5,
 		function(id)
 			local groupdata, is_success = server.getVehicleGroup(group_id)
 			if is_success then
@@ -969,7 +969,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	end
 
 	-- flip vehicles command
-	if (command:lower() == "?flip") then
+	if (command:lower() == "?flip") or (command:lower() == "?f") then
 		commandfound = true
 		local ownersteamid = getsteam_id(user_peer_id)
 		local worked = false
@@ -1326,7 +1326,7 @@ function tipMessages()
 				tiptimer = 0
 			end
 			if tipstep == 3 then
-				sendannounce("[Tip]", "we have a discord server. dont forget to join. discord.gg/snJyn6V2Qs or run the command ?disc")
+				sendannounce("[Tip]", "we have a discord server. dont forget to join. "..discordlink.." or run the command ?disc")
 				tiptimer = 0
 			end
 			if tipstep == 4 then
