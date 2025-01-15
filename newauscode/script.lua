@@ -19,6 +19,7 @@ adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"7
 nosave = {playerdata={}} -- list that doesnt save
 chatMessages = {}
 hiddencommands = {{"?msg",true},{"?warn",true},{"?pi",true},{"?pc",true},{"?forcepvp",true},{"?forceas",true},{"?forcerepair",true},{"?ep",true},{"?e",true}} -- list of commands to dont want to show to everyone in chat
+playerlist = {}
 -- settings
 discordlink = "discord.aussieworks.xyz"
 maxMessages = 250
@@ -37,12 +38,14 @@ voxellimiting = true
 voxellimit = 25000
 despawndropeditems = true
 despawndropeditemsdelay = 10
-limitingbypass = true
+limitingbypass = false
 limitingbypassperm = PermOwner
 warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
 allownicknames = false
 permtonick = PermAdmin
+enableplaytime = true
+playtimeupdatefrequency = 10 -- in seconds
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 120  -- in seconds
 debug_enabled = false -- currently not fully implemented
@@ -64,7 +67,7 @@ function playerint(steam_id, peer_id)
 	pn = friendlystring(pn)
 	if playerdatasave then
 		if g_savedata["playerdata"][tostring(steam_id)] == nil then
-			g_savedata["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=tostring(peer_id), name=tostring(pn), as=true, pvp=false, ui=false, warns=0, nicked=false}
+			g_savedata["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=tostring(peer_id), name=tostring(pn), as=true, pvp=false, ui=false, warns=0, nicked=false, pt=0, ptlu=server.getTimeMillisec(), ptachivment=0}
 			for _, sid in pairs(adminlist) do
 				if tostring(sid[1]) == tostring(steam_id) then
 					g_savedata["playerdata"][tostring(steam_id)]["perms"] = sid[2]
@@ -92,6 +95,9 @@ function playerint(steam_id, peer_id)
 			g_savedata["playerdata"][tostring(steam_id)]["ui"] = g_savedata["playerdata"][tostring(steam_id)]["ui"] or false
 			g_savedata["playerdata"][tostring(steam_id)]["warns"] = tostring(g_savedata["playerdata"][tostring(steam_id)]["warns"]) or "0"
 			g_savedata["playerdata"][tostring(steam_id)]["nicked"] = g_savedata["playerdata"][tostring(steam_id)]["nicked"] or false
+			g_savedata["playerdata"][tostring(steam_id)]["pt"] = g_savedata["playerdata"][tostring(steam_id)]["pt"] or 0
+			g_savedata["playerdata"][tostring(steam_id)]["ptlu"] = server.getTimeMillisec()
+			g_savedata["playerdata"][tostring(steam_id)]["ptachivment"] = g_savedata["playerdata"][tostring(steam_id)]["ptachivment"] or 0
 			for _, sid in pairs(adminlist) do
 				if tostring(sid[1]) == tostring(steam_id) then
 					g_savedata["playerdata"][tostring(steam_id)]["perms"] = sid[2]
@@ -164,11 +170,15 @@ function setPlayerdata(set, idtoggle, id, value) -- if idtoggle true it will try
 		if idtoggle then
 			local sid = getsteam_id(id)
 			if set ~= nil then
-				g_savedata["playerdata"][tostring(sid)][set] = value
+				if value ~= nil then
+					g_savedata["playerdata"][tostring(sid)][set] = value
+				end
 			end
 		else
 			if set ~= nil then
-				g_savedata["playerdata"][tostring(id)][set] = value
+				if value ~= nil then
+					g_savedata["playerdata"][tostring(id)][set] = value
+				end
 			end
 		end
 	elseif not playerdatasave then
@@ -207,6 +217,14 @@ function onPlayerLeave(steam_id, name, peer_id, admin, auth)
 		if GroupData["ownersteamid"] == ownersteamid then
 			vehiclespawned = true
 			server.despawnVehicleGroup(tonumber(group_id), true)
+		end
+	end
+	if enableplaytime then
+		updatePlaytime()
+	end
+	for i, player in pairs(playerlist) do
+		if player.id == peer_id then
+			table.remove(playerlist, i)
 		end
 	end
 end
@@ -469,6 +487,17 @@ function formatUptime(uptimeTicks, tickDuration)
 	return string.format("%02dh %02dm %02ds", hours, minutes, seconds)
 end
 
+-- format time
+function formattime(uptimeTicks, tickDuration)
+	uptimeTicks = uptimeTicks or 0
+	tickDuration = 1000
+	local totalSeconds = math.floor(uptimeTicks / tickDuration)
+	local hours = math.floor(totalSeconds / 3600)
+	local minutes = math.floor((totalSeconds % 3600) / 60)
+	local seconds = totalSeconds % 60
+	return string.format("%02dh %02dm %02ds", hours, minutes, seconds)
+end
+
 -- removes characters that brake things
 function friendlystring(String)
 	return string.gsub(String, "[<]", "")
@@ -525,6 +554,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			local was = "Unknown"
 			local wui = "Unknown"
 			local nms = "Unknown"
+			local pt = "Unknown"
+			local pta = "Unknown"
 			if perms >= PermAdmin then
 				local playerdata = getPlayerdata(nil, true, one)
 				sid = playerdata["steam_id"]
@@ -542,7 +573,15 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				if playerdata["nicked"] ~= nil then
 					nms = tostring(playerdata["nicked"])
 				end
-				sendannounce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nNicked: "..nms.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns, user_peer_id)
+				if enableplaytime then
+					if playerdata["pt"] ~= nil then
+						pt = formattime(playerdata["pt"])
+					end
+					if playerdata["ptachivment"] ~= nil then
+						pta = tostring(playerdata["ptachivment"])
+					end
+				end
+				sendannounce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nNicked: "..nms.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns.."\nPlaytime: "..pt.."\nPlaytimeachivment: "..pta, user_peer_id)
 			end
 		else
 			local pid = ""
@@ -664,6 +703,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 					removeLoop(id)
 				end
 			)
+			table.insert(playerlist, {id=user_peer_id,steam_id=getsteam_id(user_peer_id),name=getPlayerdata("name", true, user_peer_id)})
 		else
 			server.notify(user_peer_id, "[Server]", "You are already authed", 6)
 			server.removePopup(user_peer_id, 1)
@@ -1245,7 +1285,13 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?test") then
 		commandfound = true
 		if perms >= PermOwner then
-			customweatherhandler(one)
+			if one == nil then
+				updatePlaytime()
+				sendannounce("[Test]", formattime(getPlayerdata("pt",true,user_peer_id)).."\n"..getPlayerdata("pt",true,user_peer_id), user_peer_id)
+			elseif one ~= nil then
+				setPlayerdata("pt", true, two, one)
+				sendannounce("[Test]", formattime(getPlayerdata("pt",true,two)).."\n"..getPlayerdata("pt",true,two), user_peer_id)
+			end
 		end
 	end
 
@@ -1391,7 +1437,47 @@ function updateTPS(game_ticks)
     end
 end
 
+-- playtime manager
+function updatePlaytime()
+    local currentTime = server.getTimeMillisec()
+    for _, player in pairs(playerlist) do
+		local peer_id = player.id
+		if peer_id ~= nil then
+			local playtime = getPlayerdata("pt", true, peer_id) or 0
+			local lastUpdate = getPlayerdata("ptlu", true, peer_id) or currentTime
+			playtime = playtime + (currentTime - lastUpdate)
+			setPlayerdata("pt", true, peer_id, playtime)
+			setPlayerdata("ptlu", true, peer_id, currentTime)
+			if playtime >= 1800000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 0 then
+				local name = getPlayerdata("name", true, peer_id)
+				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 30 minutes of playtime")
+				setPlayerdata("ptachivment", true, peer_id, 1)
+			elseif playtime >= 3600000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 1 then
+				local name = getPlayerdata("name", true, peer_id)
+				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 1 hour of playtime")
+				setPlayerdata("ptachivment", true, peer_id, 2)
+			elseif playtime >= 7200000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 2 then
+				local name = getPlayerdata("name", true, peer_id)
+				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 2 hours of playtime")
+				setPlayerdata("ptachivment", true, peer_id, 3)
+			elseif playtime >= 14400000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 3 then
+				local name = getPlayerdata("name", true, peer_id)
+				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 4 hours of playtime")
+				setPlayerdata("ptachivment", true, peer_id, 4)
+			elseif playtime >= 28800000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 4 then
+				local name = getPlayerdata("name", true, peer_id)
+				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 8 hours of playtime")
+				setPlayerdata("ptachivment", true, peer_id, 5)
+			elseif playtime >= 36000000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 5 then
+				local name = getPlayerdata("name", true, peer_id)
+				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 10 hours of playtime")
+				setPlayerdata("ptachivment", true, peer_id, 6)
+			end
+		end
+    end
+end
 
+-- despawn droped items
 function onEquipmentDrop(character_object_id, equipment_object_id, EQUIPMENT_ID)
 	if despawndropeditems then
 		loop(despawndropeditemsdelay,
@@ -1464,7 +1550,12 @@ function updateUI()
 					local peer_id=X.id
 					local pvp = tostring(getPlayerdata("pvp", true, X.id)) or "unknown"
 					local pas = tostring(getPlayerdata("as", true, X.id)) or "unknown"
-					server.setPopupScreen(peer_id, 0, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
+					if enableplaytime then
+						local pt = formattime(getPlayerdata("pt", true, X.id)) or "unknown"
+						server.setPopupScreen(peer_id, 0, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Playtime=-\n"..pt.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.75)
+					else
+						server.setPopupScreen(peer_id, 0, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
+					end
 				end
 			end
 			uitimer = 0
@@ -1559,6 +1650,15 @@ function onCreate(is_world_create)
 	end
 	if customchat then
 		sendChat = true
+	end
+	if enableplaytime then
+		loop(playtimeupdatefrequency,
+		function(id)
+			updatePlaytime()
+		end)
+	end
+	for _, player in pairs(server.getPlayers()) do
+		table.insert(playerlist, {id=player.id, steam_id=player.steam_id, name=player.name})
 	end
 end
 --endregion
