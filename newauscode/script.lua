@@ -56,6 +56,7 @@ tipstep = 1
 TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
+tickDuration = 1000
 scriptversion = "v1.6.4-Testing"
 
 
@@ -226,7 +227,7 @@ function onPlayerLeave(steam_id, name, peer_id, admin, auth)
 	for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 		if GroupData["ownersteamid"] == ownersteamid then
 			vehiclespawned = true
-			server.despawnVehicleGroup(tonumber(group_id), true)
+			server.despawnVehicleGroup(group_id, true)
 		end
 	end
 	if enableplaytime then
@@ -349,7 +350,7 @@ function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
 					vehiclespawned = vehiclespawned + 1
 					if vehiclespawned > playermaxvehicles then
 						despawned = true
-						server.despawnVehicleGroup(tonumber(group_id), true)
+						server.despawnVehicleGroup(group_id, true)
 						server.notify(peer_id, "[Server]", "You can only have "..playermaxvehicles.." vehicle spawned at a time", 6)
 					end
 				end
@@ -398,7 +399,7 @@ function checklimmiting(group_id, peer_id)
 			local name = getPlayerdata("name", true, peer_id)
 			local voxel_count = calculateVoxels(group_id)
 			if voxel_count > voxellimit then
-				server.despawnVehicleGroup(tonumber(group_id), true)
+				server.despawnVehicleGroup(group_id, true)
 				sendannounce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded block limit "..voxel_count.."/"..voxellimit)
 				return true
 			end
@@ -414,7 +415,7 @@ function checklimmiting(group_id, peer_id)
 				end
 				name = server.getPlayerName(peer_id)
 				sendannounce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded subbody limit "..#subbodys.."/"..maxsubbodys)
-				server.despawnVehicleGroup(tonumber(group_id), true)
+				server.despawnVehicleGroup(group_id, true)
 				return true
 			end
 		end
@@ -488,7 +489,6 @@ end
 -- Function to format runtime in days, hours, minutes, and seconds
 function formatUptime(uptimeTicks, tickDuration)
 	uptimeTicks = server.getTimeMillisec()
-	tickDuration = 1000
 	local totalSeconds = math.floor(uptimeTicks / tickDuration)
 	local hours = math.floor(totalSeconds / 3600)
 	local minutes = math.floor((totalSeconds % 3600) / 60)
@@ -728,7 +728,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			local ownersteamid = getsteam_id(one)
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 				if GroupData["ownersteamid"] == ownersteamid then
-					server.despawnVehicleGroup(tonumber(group_id), true)
+					server.despawnVehicleGroup(group_id, true)
 				end
 			end
 			local warns = tonumber(getPlayerdata("warns", true, one)) + 1
@@ -812,7 +812,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 				if GroupData["ownersteamid"] == ownersteamid then
 					vehiclespawned = true
-					server.despawnVehicleGroup(tonumber(group_id), true)
+					server.despawnVehicleGroup(group_id, true)
 					server.notify(user_peer_id, "[Server]", "Your vehicle/s have been despawned", 5)
 				end
 			end
@@ -826,7 +826,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				if GroupData["ownersteamid"] == ownersteamid then
 					if group_id == one then
 						vehiclespawned = true
-						server.despawnVehicleGroup(tonumber(group_id), true)
+						server.despawnVehicleGroup(group_id, true)
 						server.notify(user_peer_id, "[Server]", "Your vehicle/s with the group id of "..one..", has been despawned", 5)
 					end
 				end
@@ -846,7 +846,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 				if GroupData["ownersteamid"] == ownersteamid then
 					vehiclespawned = true
-					server.despawnVehicleGroup(tonumber(group_id), true)
+					server.despawnVehicleGroup(group_id, true)
 					server.notify(user_peer_id, "[Server]", "Specified player's vehicle/s have been despawned", 5)
 				end
 			end
@@ -863,7 +863,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			local vehiclespawned = false
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 				vehiclespawned = true
-				server.despawnVehicleGroup(tonumber(group_id), true)
+				server.despawnVehicleGroup(group_id, true)
 			end
 			if vehiclespawned == true then
 				server.notify(user_peer_id, "[Server]", "All vehicles have been despawned", 5)
@@ -1026,9 +1026,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			if GroupData["ownersteamid"] == ownersteamid then
 				for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
 					worked = true
-					VehicleMatrix = server.getVehiclePos(tonumber(vehicle_id))
+					VehicleMatrix = server.getVehiclePos(vehicle_id)
 					x,y,z = matrix.position(VehicleMatrix)
-					server.setVehiclePos(tonumber(vehicle_id), matrix.translation(x,y+1,z))
+					server.setVehiclePos(vehicle_id, matrix.translation(x,y+1,z))
 					server.notify(user_peer_id, "[Server]", "Unflipped vehicle/s", 5)
 				end
 			end
@@ -1047,9 +1047,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				if GroupData["ownersteamid"] == ownersteamid then
 					for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
 						worked = true
-						VehicleMatrix = server.getVehiclePos(tonumber(vehicle_id))
+						VehicleMatrix = server.getVehiclePos(vehicle_id)
 						x,y,z = matrix.position(VehicleMatrix)
-						server.setVehiclePos(tonumber(vehicle_id), matrix.translation(x,y+1,z))
+						server.setVehiclePos(vehicle_id, matrix.translation(x,y+1,z))
 						server.notify(user_peer_id, "[Server]", "Unflipped vehicle/s", 5)
 						server.notify(one, "[Server]", "Unflipped vehicle/s", 5)
 					end
@@ -1329,7 +1329,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 					if two == nil then
 						server.spawnExplosion(Ppos, 0.1)
 					elseif two ~= nil then
-						server.spawnExplosion(Ppos, tonumber(two))
+						server.spawnExplosion(Ppos, two)
 					end
 				end
 			end
@@ -1350,7 +1350,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 					if two == nil then
 						server.spawnExplosion(Vpos, 0.1)
 					elseif two ~= nil then
-						server.spawnExplosion(Vpos, tonumber(two))
+						server.spawnExplosion(Vpos, two)
 					end
 				end
 			end
@@ -1649,7 +1649,7 @@ function onCreate(is_world_create)
 	if despawnonreload then
 		sendannounce("[Server]", "Vehicles despawned for script reload. Once scripts have reloaded you may respawn your vehicles")
 		for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-			server.despawnVehicleGroup(tonumber(group_id), true)
+			server.despawnVehicleGroup(group_id, true)
 		end
 	end
 	if is_world_create then
