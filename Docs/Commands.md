@@ -11,7 +11,7 @@ when one peer_id is inputed into the ?tpp command, it will teleport the player s
 It teleports the sender of the command to the inputed vehicles vehicle_id location.
 #### alias: none
 ### ?auth
-if the sender of the command has not been authed it will give them auth and notify them. else it will tell them they already have been authed. also removes the popup reminding them to auth.
+if the sender of the command has not been authed it will give them auth and notify them. else it will tell them they already have been authed. also removes the popup reminding them to auth. also enables the ui after a few seconds.
 #### alias: none
 ### ?warn {peer_id} [reason] (PermMod)
 removes auth from the player with the inputed peer_id, along with notifying them about the warn and the reason for the warn if their is one, and despawning all their vehicles.
