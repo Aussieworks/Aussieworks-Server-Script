@@ -17,7 +17,7 @@ if the sender of the command has not been authed it will give them auth and noti
 removes auth from the player with the inputed peer_id, along with notifying them about the warn and the reason for the warn if their is one, and despawning all their vehicles.
 #### alias: none
 ## Vehicles
-### ?c
+### ?c [groud_id]
 despawns all of senders vehicles and notifys them. if they have no vehicles spawned it will notify them that they dont have any spawned.
 #### alias: ?clear
 ### ?pc {peer_id} (PermAdmin)
@@ -75,6 +75,9 @@ announces the discord link set in settings to the sender in chat.
 ### ?printchat (PermAdmin)
 used in the testing of the customchat. when run by someone with PermAdmin it prints the custom chat into chat.
 #### alias: none
+### ?nick {set/reset} [nickname] (permtonick)
+used to set nickname and remove it.
+#### alias: none
 ### ?clearchat (PermMod)
 when run by someone with PermMod and it prints a bunch of blank line and then a little banner at the bottem saying who the chat was cleared by.
 #### alias: none
@@ -91,5 +94,11 @@ resets g_savedata. this is here to fix mistakes made when testing. requires scri
 announces the current tps to player.
 #### alias: none
 ### ?rules
-announces the servers rules to the sender
+announces the servers rules to the sender..\
 #### alias: none
+### ?ep {peer_id} [magnitude]
+when a peer_id is inputed it spawns an explosion at that players location. magnitude can be changed by inputing a number after the peer_id.
+#### alias: ?explodeplayer
+### ?explode {group_id} [magnitude]
+when a group_id is inputed it spawns an explosion at that vehilce groups location. magnitude can be changed by inputing a number after the peer_id.
+#### alias: ?e
