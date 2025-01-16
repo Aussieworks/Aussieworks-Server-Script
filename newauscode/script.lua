@@ -13,7 +13,7 @@ PermAdmin = 3
 PermOwner = 4
 
 -- admin list. formating: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
-adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561198371768441",PermAdmin},{"76561199032157360",PermAdmin},{"76561198170233995",PermAdmin},{"76561199477098490",PermMod}}
+adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561198371768441",PermAdmin},{"76561199032157360",PermAdmin},{"76561198170233995",PermAdmin},{"76561199477098490",PermMod},{"76561199514304709",PermMod}}
 
 -- tables
 nosave = {playerdata={}} -- list that doesnt save
@@ -42,12 +42,12 @@ limitingbypass = false
 limitingbypassperm = PermOwner
 warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
-allownicknames = false
+allownicknames = true
 permtonick = PermAdmin
 enableplaytime = false -- wip. crashes script
 playtimeupdatefrequency = 10 -- in seconds
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
-tipFrequency = 120  -- in seconds
+tipFrequency = 180  -- in seconds
 debug_enabled = false -- currently not fully implemented
 -- dont touch
 tiptimer = 0
@@ -128,6 +128,10 @@ function playerint(steam_id, peer_id)
 end
 
 -- function to get playerdata
+---@param get string | nil
+---@param idtoggle boolean
+---@param id string | number
+---@return any
 function getPlayerdata(get, idtoggle, id)
     local playerdata = nil
 
@@ -165,6 +169,10 @@ function getPlayerdata(get, idtoggle, id)
 end
 
 -- function to set playerdata
+---@param set string
+---@param idtoggle boolean
+---@param id string | number
+---@param value boolean | string | number
 function setPlayerdata(set, idtoggle, id, value) -- if idtoggle true it will try to use peer_id
 	if playerdatasave then
 		if idtoggle then
@@ -402,8 +410,7 @@ function checklimmiting(group_id, peer_id)
 			local subbodys = server.getVehicleGroup(group_id)
 			if #subbodys > maxsubbodys then
 				if debug_enabled then
-					server.announce("[Server]", #subbodys)
-					table.insert(chatMessages, {full_message=#subbodys,name="[Server]"})
+					sendannounce("[AusCode]", #subbodys)
 				end
 				name = server.getPlayerName(peer_id)
 				sendannounce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded subbody limit "..#subbodys.."/"..maxsubbodys)
@@ -452,7 +459,7 @@ end
 function onGroupDespawn(group_id, peer_id)
 	local m = server.getCurrency()
 	local nm = m + g_savedata["usercreations"][tostring(group_id)]["cost"]
-	server.setCurrency(nm)
+	server.setCurrency(nm, 0)
 	g_savedata["usercreations"][tostring(group_id)] = nil
 end
 
@@ -961,7 +968,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	end
 
 	-- repair vehicles
-	if (command:lower() == "?repair") then
+	if (command:lower() == "?repair") or (command:lower() == "?r")then
 		commandfound = true
 		local ownersteamid = getsteam_id(user_peer_id)
 		local vehicle_id = nil
@@ -1136,7 +1143,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?pvplist") then
 		commandfound = true
 		sendannounce("[Server]", "-=Players with pvp on=-", user_peer_id)
-		local pid = ""
+		local pid = 0
 		local name = ""
 		for _, playerdata in pairs(server.getPlayers()) do
 			if playerdatasave then
@@ -1181,7 +1188,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?w") or (command:lower() == "?weather") then
 		commandfound = true
 		if perms >= PermAdmin then
-			if tonumber(one) ~= fail then
+			if tonumber(one) ~= nil then
 				server.setWeather(one, two, three)
 				sendannounce("[Server]", "Weather has been set to".."\nFog: "..one.."\nRain: "..two.."\nWind: "..three)
 			elseif one == "reset" then
@@ -1196,7 +1203,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?setmoney") then
 		commandfound = true
 		if perms >= PermAdmin then
-			server.setCurrency(one)
+			server.setCurrency(one, 0)
 			sendannounce("[Server]", "Money has been set to: $"..one)
 		end
 	end
@@ -1316,7 +1323,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			if one ~= nil then
 				local Ppos, worked = server.getPlayerPos(one)
 				if not worked then
-					server.notify(user_peer_id, "[Server]", "Invalid peer id")
+					server.notify(user_peer_id, "[Server]", "Invalid peer id", 6)
 					return
 				elseif worked then
 					if two == nil then
@@ -1337,7 +1344,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				local parts = server.getVehicleGroup(one)
 				local Vpos, worked = server.getVehiclePos(parts[1], 0, 0, 0)
 				if not worked then
-					server.notify(user_peer_id, "[Server]", "Invalid Group id")
+					server.notify(user_peer_id, "[Server]", "Invalid Group id", 6)
 					return
 				elseif worked then
 					if two == nil then
@@ -1441,42 +1448,44 @@ end
 
 -- playtime manager
 function updatePlaytime()
-    local currentTime = server.getTimeMillisec() or 0
-    for _, player in pairs(playerlist) do
-		local peer_id = player.id
-		if peer_id ~= nil then
-			local playtime = getPlayerdata("pt", true, peer_id) or 0
-			local lastUpdate = getPlayerdata("ptlu", true, peer_id) or currentTime
-			playtime = (playtime + (currentTime - lastUpdate)) or 0
-			setPlayerdata("pt", true, peer_id, playtime)
-			setPlayerdata("ptlu", true, peer_id, currentTime)
-			if playtime >= 1800000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 0 then
-				local name = getPlayerdata("name", true, peer_id)
-				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 30 minutes of playtime")
-				setPlayerdata("ptachivment", true, peer_id, 1)
-			elseif playtime >= 3600000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 1 then
-				local name = getPlayerdata("name", true, peer_id)
-				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 1 hour of playtime")
-				setPlayerdata("ptachivment", true, peer_id, 2)
-			elseif playtime >= 7200000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 2 then
-				local name = getPlayerdata("name", true, peer_id)
-				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 2 hours of playtime")
-				setPlayerdata("ptachivment", true, peer_id, 3)
-			elseif playtime >= 14400000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 3 then
-				local name = getPlayerdata("name", true, peer_id)
-				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 4 hours of playtime")
-				setPlayerdata("ptachivment", true, peer_id, 4)
-			elseif playtime >= 28800000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 4 then
-				local name = getPlayerdata("name", true, peer_id)
-				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 8 hours of playtime")
-				setPlayerdata("ptachivment", true, peer_id, 5)
-			elseif playtime >= 36000000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 5 then
-				local name = getPlayerdata("name", true, peer_id)
-				sendannounce("[Playtime]", peer_id.." | "..name.." has reached 10 hours of playtime")
-				setPlayerdata("ptachivment", true, peer_id, 6)
+	if enableplaytime then
+		local currentTime = server.getTimeMillisec() or 0
+		for _, player in pairs(playerlist) do
+			local peer_id = player.id
+			if peer_id ~= nil then
+				local playtime = getPlayerdata("pt", true, peer_id) or 0
+				local lastUpdate = getPlayerdata("ptlu", true, peer_id) or currentTime
+				playtime = (playtime + (currentTime - lastUpdate)) or 0
+				setPlayerdata("pt", true, peer_id, playtime)
+				setPlayerdata("ptlu", true, peer_id, currentTime)
+				if playtime >= 1800000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 0 then
+					local name = getPlayerdata("name", true, peer_id)
+					sendannounce("[Playtime]", peer_id.." | "..name.." has reached 30 minutes of playtime")
+					setPlayerdata("ptachivment", true, peer_id, 1)
+				elseif playtime >= 3600000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 1 then
+					local name = getPlayerdata("name", true, peer_id)
+					sendannounce("[Playtime]", peer_id.." | "..name.." has reached 1 hour of playtime")
+					setPlayerdata("ptachivment", true, peer_id, 2)
+				elseif playtime >= 7200000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 2 then
+					local name = getPlayerdata("name", true, peer_id)
+					sendannounce("[Playtime]", peer_id.." | "..name.." has reached 2 hours of playtime")
+					setPlayerdata("ptachivment", true, peer_id, 3)
+				elseif playtime >= 14400000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 3 then
+					local name = getPlayerdata("name", true, peer_id)
+					sendannounce("[Playtime]", peer_id.." | "..name.." has reached 4 hours of playtime")
+					setPlayerdata("ptachivment", true, peer_id, 4)
+				elseif playtime >= 28800000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 4 then
+					local name = getPlayerdata("name", true, peer_id)
+					sendannounce("[Playtime]", peer_id.." | "..name.." has reached 8 hours of playtime")
+					setPlayerdata("ptachivment", true, peer_id, 5)
+				elseif playtime >= 36000000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 5 then
+					local name = getPlayerdata("name", true, peer_id)
+					sendannounce("[Playtime]", peer_id.." | "..name.." has reached 10 hours of playtime")
+					setPlayerdata("ptachivment", true, peer_id, 6)
+				end
 			end
 		end
-    end
+	end
 end
 
 -- despawn droped items
