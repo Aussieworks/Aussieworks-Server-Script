@@ -44,7 +44,7 @@ warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
 allownicknames = false
 permtonick = PermAdmin
-enableplaytime = true
+enableplaytime = false -- wip. crashes script
 playtimeupdatefrequency = 10 -- in seconds
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 120  -- in seconds
@@ -170,8 +170,10 @@ function setPlayerdata(set, idtoggle, id, value) -- if idtoggle true it will try
 		if idtoggle then
 			local sid = getsteam_id(id)
 			if set ~= nil then
-				if value ~= nil then
-					g_savedata["playerdata"][tostring(sid)][set] = value
+				if g_savedata["playerdata"][tostring(sid)][set] ~= nil then
+					if value ~= nil then
+						g_savedata["playerdata"][tostring(sid)][set] = value
+					end
 				end
 			end
 		else
@@ -1439,13 +1441,13 @@ end
 
 -- playtime manager
 function updatePlaytime()
-    local currentTime = server.getTimeMillisec()
+    local currentTime = server.getTimeMillisec() or 0
     for _, player in pairs(playerlist) do
 		local peer_id = player.id
 		if peer_id ~= nil then
 			local playtime = getPlayerdata("pt", true, peer_id) or 0
 			local lastUpdate = getPlayerdata("ptlu", true, peer_id) or currentTime
-			playtime = playtime + (currentTime - lastUpdate)
+			playtime = (playtime + (currentTime - lastUpdate)) or 0
 			setPlayerdata("pt", true, peer_id, playtime)
 			setPlayerdata("ptlu", true, peer_id, currentTime)
 			if playtime >= 1800000 and tonumber(getPlayerdata("ptachivment", true, peer_id)) == 0 then
@@ -1545,7 +1547,7 @@ function updateUI()
 		if uitimer >= 60 then
 			local ut = formatUptime(uptimeTicks, tickDuration)
 			local TPS = string.format("%.0f",TPS)
-			for _,X in pairs(server.getPlayers()) do
+			for _,X in pairs(playerlist) do
 				if X.id > 0 then
 					local peer_id=X.id
 					local pvp = tostring(getPlayerdata("pvp", true, X.id)) or "unknown"
