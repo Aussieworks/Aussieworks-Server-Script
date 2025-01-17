@@ -68,7 +68,7 @@ function playerint(steam_id, peer_id)
 	pn = friendlystring(pn)
 	if playerdatasave then
 		if g_savedata["playerdata"][tostring(steam_id)] == nil then
-			g_savedata["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=tostring(peer_id), name=tostring(pn), as=true, pvp=false, ui=false, warns=0, nicked=false, pt=0, ptlu=server.getTimeMillisec(), ptachivment=0}
+			g_savedata["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=tostring(peer_id), name=tostring(pn), as=true, pvp=false, ui=false, warns=0, nicked=false, lastseat={}, pt=0, ptlu=server.getTimeMillisec(), ptachivment=0}
 			for _, sid in pairs(adminlist) do
 				if tostring(sid[1]) == tostring(steam_id) then
 					g_savedata["playerdata"][tostring(steam_id)]["perms"] = sid[2]
@@ -173,7 +173,7 @@ end
 ---@param set string
 ---@param idtoggle boolean
 ---@param id string | number
----@param value boolean | string | number
+---@param value boolean | string | number | table
 function setPlayerdata(set, idtoggle, id, value) -- if idtoggle true it will try to use peer_id
 	if playerdatasave then
 		if idtoggle then
