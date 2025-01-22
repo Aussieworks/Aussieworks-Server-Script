@@ -46,7 +46,7 @@ warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
 allownicknames = true
 permtonick = PermAdmin
-enableplaytime = true -- wip. crashes script
+enableplaytime = true
 playtimeupdatefrequency = 10 -- in seconds
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 180  -- in seconds
@@ -364,7 +364,8 @@ end
 
 -- on vehicle spawn 
 function onGroupSpawn(group_id, peer_id, x, y, z, group_cost)
-	if peer_id > 0 then
+	local sid = getsteam_id(peer_id)
+	if sid ~= 0 then
 		loop(0.5,
 		function(id)
 			local groupdata, is_success = server.getVehicleGroup(group_id)
@@ -520,7 +521,6 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	local perms = getPlayerdata("perms", true, user_peer_id)
 	local commandfound = false
 	sendChat = true
-	
 	-- shows command players run
 	if showcommandsinchat then
 		local playername = getPlayerdata("name", true, user_peer_id)
@@ -1563,12 +1563,13 @@ end
 
 -- ui function. displays tps uptime and players as and pvp
 function updateUI()
-	if (countitems(server.getPlayers()) - 1) >= 1 then
+	if #playerlist >= 1 then
 		if uitimer >= 60 then
 			local ut = formatUptime(uptimeTicks, tickDuration)
 			local TPS = string.format("%.0f",TPS)
 			for _,X in pairs(playerlist) do
-				if X.id > 0 then
+				local sid = getsteam_id(X.id)
+				if sid ~= 0 then
 					local peer_id=X.id
 					local pvp = tostring(getPlayerdata("pvp", true, X.id)) or "unknown"
 					local pas = tostring(getPlayerdata("as", true, X.id)) or "unknown"
@@ -1680,7 +1681,9 @@ function onCreate(is_world_create)
 		end)
 	end
 	for _, player in pairs(server.getPlayers()) do
-		table.insert(playerlist, {id=player.id, steam_id=player.steam_id, name=player.name})
+		if player.steam_id ~= 0 then
+			table.insert(playerlist, {id=player.id, steam_id=player.steam_id, name=player.name})
+		end
 	end
 end
 --endregion
