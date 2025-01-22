@@ -30,6 +30,7 @@ playerdatasave = true
 despawnonreload = false
 customchat = true
 showcommandsinchat = true
+disablecommandsnotification = false
 customweatherevents = false
 customweatherfrequency = 60 -- in seconds
 forcepvp = false -- if true then pvp will be on by default and the ?pvp command will be dissabled
@@ -555,7 +556,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			end
 		end
 		if disabledcommand then
-			server.notify(user_peer_id, "[Server]", "That command has been disabled. try using ?help for a list of commands", 6)
+			if disablecommandsnotification then
+				server.notify(user_peer_id, "[Server]", "That command has been disabled. try using ?help for a list of commands", 6)
+			end
 			return
 		end
 	end
