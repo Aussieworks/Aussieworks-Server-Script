@@ -46,7 +46,7 @@ warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
 allownicknames = true
 permtonick = PermAdmin
-enableplaytime = false -- wip. crashes script
+enableplaytime = true -- wip. crashes script
 playtimeupdatefrequency = 10 -- in seconds
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 180  -- in seconds
@@ -402,7 +402,7 @@ function checklimmiting(group_id, peer_id)
 			local voxel_count = calculateVoxels(group_id)
 			if voxel_count > voxellimit then
 				server.despawnVehicleGroup(group_id, true)
-				sendannounce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded block limit "..voxel_count.."/"..voxellimit)
+				sendannounce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceededing block limit "..voxel_count.."/"..voxellimit)
 				return true
 			end
 			if debug_enabled then
@@ -416,7 +416,7 @@ function checklimmiting(group_id, peer_id)
 					sendannounce("[AusCode]", #subbodys)
 				end
 				name = server.getPlayerName(peer_id)
-				sendannounce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceeded subbody limit "..#subbodys.."/"..maxsubbodys)
+				sendannounce("[Server]", peer_id.." | "..name.."'s vehicle group: "..group_id.." has been despawned for exceededing subbody limit "..#subbodys.."/"..maxsubbodys)
 				server.despawnVehicleGroup(group_id, true)
 				return true
 			end
@@ -606,7 +606,6 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			end
 		else
 			local pid = ""
-			local sid = ""
 			local name = ""
 			if perms >= PermAdmin then
 				if playerdatasave then
@@ -625,7 +624,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			end
 		end
 	end
-	
+
 	-- teleport player to player
 	if (command:lower() == "?tpp") then
 		commandfound = true
@@ -639,7 +638,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			end
 		end
 	end
-	
+
 	-- teleport player to vehicle
 	if (command:lower() == "?tpv") then
 		commandfound = true
@@ -789,7 +788,6 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 						end
 					elseif perms >= PermAdmin then
 						if GroupData["Vehicleparts"][tostring(parts[1])] ~= nil then
-							
 							local voxel_count = calculateVoxels(one)
 							local subgrids = #parts
 							local ownersteamid = GroupData["ownersteamid"]
