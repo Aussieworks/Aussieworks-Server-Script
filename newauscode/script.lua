@@ -18,7 +18,8 @@ adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"7
 -- tables
 nosave = {playerdata={}} -- list that doesnt save
 chatMessages = {}
-hiddencommands = {{"?msg",true},{"?warn",true},{"?pi",true},{"?pc",true},{"?forcepvp",true},{"?forceas",true},{"?forcerepair",true},{"?ep",true},{"?e",true}} -- list of commands to dont want to show to everyone in chat
+hiddencommands = {"?msg","?warn","?pi","?pc","?forcepvp","?forceas","?forcerepair","?ep","?e"} -- list of commands to dont want to show to everyone in chat
+disabledcommands = {} -- list of commands that are disabled
 playerlist = {}
 -- settings
 discordlink = "discord.aussieworks.xyz"
@@ -540,14 +541,22 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		
 		local hidecommand = false
 		for c, commanddata in pairs(hiddencommands) do
-			if command:lower() == commanddata[1] then
-				if commanddata[2] then
-					hidecommand = true
-				end
+			if command:lower() == commanddata then
+				hidecommand = true
 			end
 		end
 		if not hidecommand then
 			sendannounce(name, "> "..full_message)
+		end
+		local disabledcommand = false
+		for c, commanddata in pairs(disabledcommands) do
+			if command:lower() == commanddata then
+				disabledcommand = true
+			end
+		end
+		if disabledcommand then
+			server.notify(user_peer_id, "[Server]", "That command has been disabled. try using ?help for a list of commands", 6)
+			return
 		end
 	end
 
@@ -777,15 +786,16 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 						end
 					elseif perms >= PermAdmin then
 						if GroupData["Vehicleparts"][tostring(parts[1])] ~= nil then
-							if getPlayerdata("pvp", true, user_peer_id) == true then
-								pvp = "true"
-							elseif getPlayerdata("pvp", true, user_peer_id) == false then
-								pvp = "false"
-							end
+							
 							local voxel_count = calculateVoxels(one)
 							local subgrids = #parts
 							local ownersteamid = GroupData["ownersteamid"]
 							local pid = getpeer_id(ownersteamid)
+							if getPlayerdata("pvp", true, pid) == true then
+								pvp = "true"
+							elseif getPlayerdata("pvp", true, pid) == false then
+								pvp = "false"
+							end
 							local name = getPlayerdata("name", true, pid)
 							sendannounce("[Server]", "Vehicle group: "..one.."\nOwner: "..pid.." | "..name.."\nOwner steam_id: "..ownersteamid.."\nVoxel count: "..voxel_count.."\nSubgrids: "..subgrids.."\nPVP: "..pvp, user_peer_id)
 							worked = true
@@ -840,7 +850,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- clear spesific players vehicle
 	if (command:lower() == "?pc") or (command:lower() == "?playerclear") then
 		commandfound = true
-		if perms >= PermAdmin then    
+		if perms >= PermMod then
 			local ownersteamid = getsteam_id(one)
 			local vehiclespawned = false
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
