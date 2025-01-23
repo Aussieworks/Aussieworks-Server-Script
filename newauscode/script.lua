@@ -59,7 +59,7 @@ TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
 tickDuration = 1000
-scriptversion = "v1.6.4-Testing"
+scriptversion = "v1.6.5-Testing"
 
 
 
@@ -642,18 +642,26 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- teleport player to vehicle
 	if (command:lower() == "?tpv") then
 		commandfound = true
-		local worked = false
+		local cworked = false
 		if one ~= nil then
-			local parts = server.getVehicleGroup(one)
-			local vmatrix = server.getVehiclePos(parts[1], 0, 0, 0)
-			local x,y,z = matrix.position(vmatrix)
-			server.setPlayerPos(user_peer_id, matrix.translation(x,y+10,z))
-			worked = true
+			if type(one) == "number" then
+				local parts vworked= server.getVehicleGroup(one)
+				if vworked then
+					local vmatrix, pworked = server.getVehiclePos(parts[1], 0, 0, 0)
+					if pworked then
+						local x,y,z = matrix.position(vmatrix)
+						server.setPlayerPos(user_peer_id, matrix.translation(x,y+10,z))
+						cworked = true
+					end
+				end
+			end
 		elseif one == nil then
 			server.notify(user_peer_id, "[Server]", "You have to input the vehicles group id of the vehicle you want to go to", 6)
 		end
-		if worked == true then
+		if cworked == true then
 			server.notify(user_peer_id, "[Server]", "You have been teleported to vehicle group: "..one, 5)
+		elseif cworked == false then
+			server.notify(user_peer_id, "[Server]", "Vehicle group: "..one.." does not exist", 6)
 		end
 	end
 
@@ -1189,7 +1197,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- lists all the commands
 	if (command:lower() == "?help") then
 		commandfound = true
-		sendannounce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group".."\n|?tpv [group_id]".."\n|teleports inputed vehicle group to you".."\n|?nick [reset/set] {nickname}".."\n|sets nickname and removes it".."\n|?vi [group_id]".."\n|tells you info about inputed group_id", user_peer_id)
+		sendannounce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group".."\n|?nick [reset/set] {nickname}".."\n|sets nickname and removes it".."\n|?vi [group_id]".."\n|tells you info about inputed group_id", user_peer_id)
 		if perms >= PermMod then
 			sendannounce("[Server]", "-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehicles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehicles of inputed players ids".."\n|?forceas [peer_id] {true/false}".."\n|toggles as for inputed peer id".."\n|?forcepvp [peer_id] {true/false}".."\n|toggles pvp for inputed peer id".."\n|?clearchat".."\n|clears chat", user_peer_id)
 		end
