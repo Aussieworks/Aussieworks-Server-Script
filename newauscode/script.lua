@@ -636,6 +636,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				local m1 = server.getPlayerPos(two)
 				server.setPlayerPos(one, m1)
 			end
+		else
+			local m1 = server.getPlayerPos(one)
+			server.setPlayerPos(user_peer_id, m1)
 		end
 	end
 
@@ -644,8 +647,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		commandfound = true
 		local cworked = false
 		if one ~= nil then
-			if type(one) == "number" then
-				local parts vworked= server.getVehicleGroup(one)
+			if type(tonumber(one)) == "number" then
+				local parts, vworked= server.getVehicleGroup(one)
 				if vworked then
 					local vmatrix, pworked = server.getVehiclePos(parts[1], 0, 0, 0)
 					if pworked then
