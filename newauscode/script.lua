@@ -59,7 +59,7 @@ TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
 tickDuration = 1000
-scriptversion = "v1.6.4-Testing"
+scriptversion = "v1.6.4"
 
 
 
