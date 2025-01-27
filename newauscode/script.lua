@@ -1691,6 +1691,7 @@ function onCreate(is_world_create)
 			updatePlaytime()
 		end)
 	end
+	playerlist = {}
 	for _, player in pairs(server.getPlayers()) do
 		if player.steam_id ~= 0 then
 			table.insert(playerlist, {id=player.id, steam_id=player.steam_id, name=player.name})
