@@ -1178,6 +1178,28 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		end
 	end
 
+	-- playtime leaderboard
+	if (command:lower() == "?ptlb") then
+		commandfound = true
+		if enableplaytime then
+			local playtimedata = {}
+			for sid, playedata in pairs(g_savedata["playerdata"]) do
+				if playedata["pt"] ~= nil then
+					table.insert(playtimedata, {sid=sid, pt=playedata["pt"]})
+				end
+			end
+			table.sort(playtimedata, function(a,b) return a.pt > b.pt end)
+			sendannounce("[Server]", "-=Playtime Leaderboard=-", user_peer_id)
+			local message = ""
+			for i, data in pairs(playtimedata) do
+				local name = getPlayerdata("name", true, getpeer_id(data["sid"]))
+				local pt = formattime(data["pt"])
+				message = message.."\n"..i..". "..getpeer_id(data["sid"]).." | "..name.." | "..pt
+			end
+			sendannounce("[Server]", message, user_peer_id)
+		end
+	end
+	
 	-- ui command
 	if (command:lower() == "?ui") then
 		commandfound = true
@@ -1200,7 +1222,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- lists all the commands
 	if (command:lower() == "?help") then
 		commandfound = true
-		sendannounce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group".."\n|?nick [reset/set] {nickname}".."\n|sets nickname and removes it".."\n|?vi [group_id]".."\n|tells you info about inputed group_id", user_peer_id)
+		sendannounce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group".."\n|?nick [reset/set] {nickname}".."\n|sets nickname and removes it".."\n|?vi [group_id]".."\n|tells you info about inputed group_id".."\n|?ptlb".."\n|lists all players playtime in order", user_peer_id)
 		if perms >= PermMod then
 			sendannounce("[Server]", "-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehicles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehicles of inputed players ids".."\n|?forceas [peer_id] {true/false}".."\n|toggles as for inputed peer id".."\n|?forcepvp [peer_id] {true/false}".."\n|toggles pvp for inputed peer id".."\n|?clearchat".."\n|clears chat", user_peer_id)
 		end
