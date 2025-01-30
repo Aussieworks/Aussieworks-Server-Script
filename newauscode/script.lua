@@ -47,6 +47,9 @@ warnaction = "kick" -- can be "kick" or "ban"
 allownicknames = true
 permtonick = PermAdmin
 enableplaytime = true
+enablebackend = true -- requires backend to be running. and also requires the backend to be from AusCode, otherwise it may not work
+backendport = 8000
+playtimetodbfrequency = 60 -- in seconds
 playtimeupdatefrequency = 10 -- in seconds
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 180  -- in seconds
@@ -234,6 +237,9 @@ function onPlayerLeave(steam_id, name, peer_id, admin, auth)
 	end
 	if enableplaytime then
 		updatePlaytime()
+	end
+	if enablebackend then
+		updatePlaytimeToDB(steam_id)
 	end
 	for i, player in pairs(playerlist) do
 		if player.id == peer_id then
@@ -501,7 +507,7 @@ end
 
 -- format time
 function formattime(uptimeTicks, tickDuration)
-	uptimeTicks = uptimeTicks or 0
+	uptimeTicks = tonumber(uptimeTicks) or 0
 	tickDuration = 1000
 	local totalSeconds = math.floor(uptimeTicks / tickDuration)
 	local hours = math.floor(totalSeconds / 3600)
@@ -513,6 +519,30 @@ end
 -- removes characters that brake things
 function friendlystring(String)
 	return string.gsub(String, "[<]", "")
+end
+
+-- sends playtime to backend
+if enablebackend then
+	---@param steam_id string
+	function updatePlaytimeToDB(steam_id)
+		server.httpGet(backendport, "/data_post?name="..tostring(steam_id).."&value="..getPlayerdata("pt", false, steam_id))
+	end
+	function getPlaytimeFromDB(steam_id)
+		server.httpGet(backendport, "/data_get?name="..tostring(steam_id))
+	end
+	function httpReply(port, request, reply)
+		if startsWith(request, "/data_get") then
+			request = tostring(request)
+			setPlayerdata("pt", false, request:gsub("^/data_get%?name=%s*", ""), reply)
+			if debug_enabled then
+				sendannounce("[Debug]", "Playtime for "..request:gsub("^/data_get%?name=%s*", "").." is "..reply)
+			end
+		end
+	end
+end
+-- check if starts with
+function startsWith(str, value)
+	return str:sub(1, #value) == value
 end
 --endregion
 
@@ -730,6 +760,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			server.removePopup(user_peer_id, 0)
 			loop(3,
 				function(id)
+					if enablebackend then
+						getPlaytimeFromDB(getsteam_id(user_peer_id))
+					end
 					setPlayerdata("ui", true, user_peer_id, true)
 					removeLoop(id)
 				end
@@ -1338,13 +1371,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?test") then
 		commandfound = true
 		if perms >= PermOwner then
-			if one == nil then
-				updatePlaytime()
-				sendannounce("[Test]", formattime(getPlayerdata("pt",true,user_peer_id)).."\n"..getPlayerdata("pt",true,user_peer_id), user_peer_id)
-			elseif one ~= nil then
-				setPlayerdata("pt", true, two, one)
-				sendannounce("[Test]", formattime(getPlayerdata("pt",true,two)).."\n"..getPlayerdata("pt",true,two), user_peer_id)
-			end
+			getPlaytimeFromDB(getsteam_id(user_peer_id))
 		end
 	end
 
@@ -1497,7 +1524,7 @@ function updatePlaytime()
 		for _, player in pairs(playerlist) do
 			local peer_id = player.id
 			if peer_id ~= nil then
-				local playtime = getPlayerdata("pt", true, peer_id) or 0
+				local playtime = tonumber(getPlayerdata("pt", true, peer_id)) or 0
 				local lastUpdate = getPlayerdata("ptlu", true, peer_id) or currentTime
 				playtime = (playtime + (currentTime - lastUpdate)) or 0
 				setPlayerdata("pt", true, peer_id, playtime)
@@ -1718,6 +1745,14 @@ function onCreate(is_world_create)
 		if player.steam_id ~= 0 then
 			table.insert(playerlist, {id=player.id, steam_id=player.steam_id, name=player.name})
 		end
+	end
+	if enablebackend then
+		loop(playtimetodbfrequency,
+		function(id)
+			for _, player in pairs(playerlist) do
+				updatePlaytimeToDB(player.steam_id)
+			end
+		end)
 	end
 end
 --endregion
