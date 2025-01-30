@@ -235,14 +235,14 @@ function onPlayerLeave(steam_id, name, peer_id, admin, auth)
 			server.despawnVehicleGroup(group_id, true)
 		end
 	end
-	if enableplaytime then
-		updatePlaytime()
-	end
-	if enablebackend then
-		updatePlaytimeToDB(steam_id)
-	end
 	for i, player in pairs(playerlist) do
 		if player.id == peer_id then
+			if enableplaytime then
+				updatePlaytime()
+			end
+			if enablebackend then
+				updatePlaytimeToDB(steam_id)
+			end
 			table.remove(playerlist, i)
 		end
 	end
