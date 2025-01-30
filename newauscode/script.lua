@@ -214,7 +214,7 @@ end
 -- player joined
 function onPlayerJoin(steam_id, name, peer_id, admin, auth)
 	sendannounce("[Server]", peer_id.." | "..name.." joined the game")
-	server.setPopupScreen(peer_id, 1, "auth", true, "You are not authed. type ?auth in chat to get authed", 0, 0)
+	server.setPopupScreen(peer_id, 3, "auth", true, "You are not authed. type ?auth in chat to get authed", 0, 0)
 	if testingwarning then
 		server.announce("[AusCode]", "Script is being worked on and there will be many script reloads", peer_id)
 		table.insert(chatMessages, {full_message="Script is being worked on and there will be many script reloads",name="[AusCode]",topid=peer_id})
@@ -755,9 +755,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		if not is_auth then
 			server.addAuth(user_peer_id)
 			server.notify(user_peer_id, "[Server]", "You have been authed", 5)
-			server.removePopup(user_peer_id, 1)
+			server.removePopup(user_peer_id, 3)
 			setPlayerdata("ui", true, user_peer_id, false)
-			server.removePopup(user_peer_id, 0)
+			server.removePopup(user_peer_id, 2)
 			loop(3,
 				function(id)
 					if enablebackend then
@@ -770,7 +770,21 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			table.insert(playerlist, {id=user_peer_id,steam_id=getsteam_id(user_peer_id),name=getPlayerdata("name", true, user_peer_id)})
 		else
 			server.notify(user_peer_id, "[Server]", "You are already authed", 6)
-			server.removePopup(user_peer_id, 1)
+			server.removePopup(user_peer_id, 3)
+			if user_peer_id == 0 and getPlayerdata("steam_id", true, user_peer_id) ~= 0 then
+				setPlayerdata("ui", true, user_peer_id, false)
+				server.removePopup(user_peer_id, 2)
+				loop(3,
+					function(id)
+						if enablebackend then
+							getPlaytimeFromDB(getsteam_id(user_peer_id))
+						end
+						setPlayerdata("ui", true, user_peer_id, true)
+						removeLoop(id)
+					end
+				)
+				table.insert(playerlist, {id=user_peer_id,steam_id=getsteam_id(user_peer_id),name=getPlayerdata("name", true, user_peer_id)})
+			end
 		end
 	end
 
@@ -1635,9 +1649,9 @@ function updateUI()
 					local pas = tostring(getPlayerdata("as", true, X.id)) or "unknown"
 					if enableplaytime then
 						local pt = formattime(getPlayerdata("pt", true, X.id)) or "unknown"
-						server.setPopupScreen(peer_id, 0, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Playtime=-\n"..pt.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.75)
+						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Playtime=-\n"..pt.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.75)
 					else
-						server.setPopupScreen(peer_id, 0, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
+						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
 					end
 				end
 			end
