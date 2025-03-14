@@ -13,7 +13,7 @@ PermAdmin = 3
 PermOwner = 4
 
 -- admin list. formating: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
-adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561198371768441",PermAdmin},{"76561199032157360",PermAdmin},{"76561198170233995",PermAdmin},{"76561199477098490",PermMod},{"76561199514304709",PermMod}}
+adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561198371768441",PermAdmin},{"76561199032157360",PermAdmin},{"76561198170233995",PermAdmin},{"76561199514304709",PermAdmin},{"76561198453848694",PermAdmin},{"76561199477098490",PermMod}}
 
 -- tables
 nosave = {playerdata={}} -- list that doesnt save
@@ -34,6 +34,7 @@ disablecommandsnotification = false
 customweatherevents = false
 customweatherfrequency = 60 -- in seconds
 forcepvp = false -- if true then pvp will be on by default and the ?pvp command will be dissabled
+pvpeffects = true -- if player dies with pvp off they will get revived and healed ect
 subbodylimiting = true
 maxsubbodys = 15
 voxellimiting = true
@@ -69,6 +70,9 @@ scriptversion = "v1.6.5-Testing"
 -- Player Managment
 -- initalising the player
 function playerint(steam_id, peer_id)
+	if steam_id == nil or 0 then
+		return
+	end
 	local pn = server.getPlayerName(peer_id)
 	pn = friendlystring(pn)
 	if playerdatasave then
@@ -86,7 +90,7 @@ function playerint(steam_id, peer_id)
 				g_savedata["playerdata"][tostring(steam_id)]["pvp"] = true
 			end
 		elseif g_savedata["playerdata"][tostring(steam_id)] ~= nil then
-			g_savedata["playerdata"][tostring(steam_id)]["peer_id"] = peer_id
+			g_savedata["playerdata"][tostring(steam_id)]["peer_id"] = tostring(peer_id)
 			if allownicknames then
 				if g_savedata["playerdata"][tostring(steam_id)]["nicked"] == true then
 					g_savedata["playerdata"][tostring(steam_id)]["name"] = g_savedata["playerdata"][tostring(steam_id)]["name"]
@@ -139,39 +143,39 @@ end
 ---@param id string | number
 ---@return any
 function getPlayerdata(get, idtoggle, id)
-    local playerdata = nil
+	local playerdata = nil
 
-    if playerdatasave then
-        if idtoggle then
-            local sid = getsteam_id(id)
-            if sid == nil then
-                return nil
-            end
-            playerdata = g_savedata["playerdata"][tostring(sid)]
-        else
-            playerdata = g_savedata["playerdata"][tostring(id)]
-        end
-    else
-        if idtoggle then
-            local sid = getsteam_id(id)
-            if sid == nil then
-                return nil
-            end
-            playerdata = nosave["playerdata"][tostring(sid)]
-        else
-            playerdata = nosave["playerdata"][tostring(id)]
-        end
-    end
+	if playerdatasave then
+		if idtoggle then
+			local sid = getsteam_id(id)
+			if sid == nil then
+				return nil
+			end
+			playerdata = g_savedata["playerdata"][tostring(sid)]
+		else
+			playerdata = g_savedata["playerdata"][tostring(id)]
+		end
+	else
+		if idtoggle then
+			local sid = getsteam_id(id)
+			if sid == nil then
+				return nil
+			end
+			playerdata = nosave["playerdata"][tostring(sid)]
+		else
+			playerdata = nosave["playerdata"][tostring(id)]
+		end
+	end
 
-    if playerdata == nil then
-        return nil
-    end
+	if playerdata == nil then
+		return nil
+	end
 
-    if get ~= nil then
-        return playerdata[get]
-    else
-        return playerdata
-    end
+	if get ~= nil then
+		return playerdata[get]
+	else
+		return playerdata
+	end
 end
 
 -- function to set playerdata
@@ -1271,7 +1275,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		commandfound = true
 		sendannounce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group".."\n|?nick [reset/set] {nickname}".."\n|sets nickname and removes it".."\n|?vi [group_id]".."\n|tells you info about inputed group_id".."\n|?ptlb".."\n|lists all players playtime in order", user_peer_id)
 		if perms >= PermMod then
-			sendannounce("[Server]", "-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehicles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehicles of inputed players ids".."\n|?forceas [peer_id] {true/false}".."\n|toggles as for inputed peer id".."\n|?forcepvp [peer_id] {true/false}".."\n|toggles pvp for inputed peer id".."\n|?clearchat".."\n|clears chat", user_peer_id)
+			sendannounce("[Server]", "-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?warn [peer_id] {reason}".."\n|warns selected player".."\n|?ca".."\n|clears all vehicles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehicles of inputed players ids".."\n|?forceas [peer_id] {true/false}".."\n|toggles as for inputed peer id".."\n|?forcepvp [peer_id] {true/false}".."\n|toggles pvp for inputed peer id".."\n|?clearchat".."\n|clears chat", user_peer_id)
 		end
 	end
 
@@ -1501,6 +1505,10 @@ function onTick(game_ticks)
 	updateUI()
 	loopManager()
 	
+	-- pvp effects
+	if pvpeffects then
+		updatePVPEffects()
+	end
 	-- custom chat
 	if customchat then
 		if sendChat then
@@ -1516,19 +1524,19 @@ end
 
 -- tps function
 function updateTPS(game_ticks)
-    local tempo = server.getTimeMillisec()
+	local tempo = server.getTimeMillisec()
 
-    if tempo - TIME < 1996 then
-        TICKS = TICKS + (game_ticks * 0.49875)
-    else
-        -- TICKS remains the same
-    end
+	if tempo - TIME < 1996 then
+		TICKS = TICKS + (game_ticks * 0.49875)
+	else
+		-- TICKS remains the same
+	end
 
-    if tempo - TIME >= 1996 then
-        TPS = TICKS
-        TIME = tempo
-        TICKS = 0
-    end
+	if tempo - TIME >= 1996 then
+		TPS = TICKS
+		TIME = tempo
+		TICKS = 0
+	end
 end
 
 -- playtime manager
@@ -1567,6 +1575,31 @@ function updatePlaytime()
 					local name = getPlayerdata("name", true, peer_id)
 					sendannounce("[Playtime]", peer_id.." | "..name.." has reached 10 hours of playtime")
 					setPlayerdata("ptachivment", true, peer_id, 6)
+				end
+			end
+		end
+	end
+end
+
+function updatePVPEffects() --Made by: Sedrowow
+	-- Update PVP status effects (healing and revival)
+	for _, playerdata in pairs(playerlist) do
+		local is_pvp = getPlayerdata("pvp",true,playerdata.id)
+		if not is_pvp then -- If PVP is disabled
+			-- Get player's character ID
+			local object_id, is_success = server.getPlayerCharacterID(playerdata.id)
+			if is_success then
+				-- Get character data
+				local char_data = server.getObjectData(object_id)
+				if char_data then
+					-- Revive if dead or incapacitated
+					if char_data.dead or char_data.incapacitated then
+						server.reviveCharacter(object_id)
+					end
+					-- Heal if damaged
+					if char_data.hp < 100 then
+						server.setCharacterData(object_id, 100, true, false)
+					end
 				end
 			end
 		end
@@ -1664,52 +1697,52 @@ end
 --region Loop Manager
 local loops = {}
 function loop(time, func)
-    local id = #loops + 1
+	local id = #loops + 1
 
-    loops[id] = {
-        callback = func,
-        time = time,
-        creationTime = server.getTimeMillisec(),
-        id = id,
-        paused = false
-    }
+	loops[id] = {
+		callback = func,
+		time = time,
+		creationTime = server.getTimeMillisec(),
+		id = id,
+		paused = false
+	}
 
-    return {
-        properties = loops[id],
+	return {
+		properties = loops[id],
 
-        edit = function(self, newTime)
-            self.properties.time = newTime
-        end,
+		edit = function(self, newTime)
+			self.properties.time = newTime
+		end,
 
-        call = function(self)
-            self.properties.callback()
-        end,
+		call = function(self)
+			self.properties.callback()
+		end,
 
-        remove = function(self)
-            loops[id] = nil
-            self = nil
-        end,
+		remove = function(self)
+			loops[id] = nil
+			self = nil
+		end,
 
-        setPaused = function(self, state)
-            self.paused = state
-        end,
+		setPaused = function(self, state)
+			self.paused = state
+		end,
 
-        id = id
-    }
+		id = id
+	}
 end
 
 function removeLoop(id)
-    loops[id] = nil
+	loops[id] = nil
 end
 
 function loopManager()
-    local timeNow = server.getTimeMillisec()
-    for _, v in pairs(loops) do
-        if timeNow >= v.creationTime + (v.time * 1000) and not v.paused then
-            v.callback(v.id)
-            v.creationTime = timeNow
-        end
-    end
+	local timeNow = server.getTimeMillisec()
+	for _, v in pairs(loops) do
+		if timeNow >= v.creationTime + (v.time * 1000) and not v.paused then
+			v.callback(v.id)
+			v.creationTime = timeNow
+		end
+	end
 end
 --endregion
 
