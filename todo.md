@@ -12,6 +12,6 @@ script stuff
 | Ui | 🟢 |
 | Tps limiting | 🔴 |
 | Custom weather | 🟡 |
-| Make heartbeat http and backend for auto restarts | 🔴 |
+| Make heartbeat http and backend for auto restarts | 🟡 |
 | Add bypasses for limmiting max vehicles ect | 🟢 |
 | Add item deletion when drop | 🟢 |
