@@ -70,9 +70,6 @@ scriptversion = "v1.6.5-Testing"
 -- Player Managment
 -- initalising the player
 function playerint(steam_id, peer_id)
-	if steam_id == nil or 0 then
-		return
-	end
 	local pn = server.getPlayerName(peer_id)
 	pn = friendlystring(pn)
 	if playerdatasave then
@@ -254,6 +251,7 @@ end
 
 -- geting the steam id off a peer id
 function getsteam_id(peer_id)
+	peer_id = tostring(peer_id)
 	if playerdatasave then
 		for _, playerdata in pairs(g_savedata["playerdata"]) do
 			if tostring(playerdata["peer_id"]) == tostring(peer_id) then
