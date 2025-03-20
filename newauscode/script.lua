@@ -34,6 +34,7 @@ disablecommandsnotification = false
 customweatherevents = false
 customweatherfrequency = 60 -- in seconds
 forcepvp = false -- if true then pvp will be on by default and the ?pvp command will be dissabled
+pvpeffects = true -- if player dies with pvp off they will get revived and healed ect
 subbodylimiting = true
 maxsubbodys = 15
 voxellimiting = true
@@ -44,9 +45,12 @@ limitingbypass = false
 limitingbypassperm = PermOwner
 warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
-allownicknames = true
+allownicknames = false
 permtonick = PermAdmin
 enableplaytime = true
+enablebackend = false -- requires backend to be running. and also requires the backend to be from AusCode, otherwise it may not work. currently still in development and not on the repo.
+backendport = 8000
+playtimetodbfrequency = 60 -- in seconds
 playtimeupdatefrequency = 10 -- in seconds
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 180  -- in seconds
@@ -59,7 +63,7 @@ TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
 tickDuration = 1000
-scriptversion = "v1.6.4"
+scriptversion = "v1.6.5"
 
 
 
@@ -83,7 +87,7 @@ function playerint(steam_id, peer_id)
 				g_savedata["playerdata"][tostring(steam_id)]["pvp"] = true
 			end
 		elseif g_savedata["playerdata"][tostring(steam_id)] ~= nil then
-			g_savedata["playerdata"][tostring(steam_id)]["peer_id"] = peer_id
+			g_savedata["playerdata"][tostring(steam_id)]["peer_id"] = tostring(peer_id)
 			if allownicknames then
 				if g_savedata["playerdata"][tostring(steam_id)]["nicked"] == true then
 					g_savedata["playerdata"][tostring(steam_id)]["name"] = g_savedata["playerdata"][tostring(steam_id)]["name"]
@@ -136,39 +140,39 @@ end
 ---@param id string | number
 ---@return any
 function getPlayerdata(get, idtoggle, id)
-    local playerdata = nil
+	local playerdata = nil
 
-    if playerdatasave then
-        if idtoggle then
-            local sid = getsteam_id(id)
-            if sid == nil then
-                return nil
-            end
-            playerdata = g_savedata["playerdata"][tostring(sid)]
-        else
-            playerdata = g_savedata["playerdata"][tostring(id)]
-        end
-    else
-        if idtoggle then
-            local sid = getsteam_id(id)
-            if sid == nil then
-                return nil
-            end
-            playerdata = nosave["playerdata"][tostring(sid)]
-        else
-            playerdata = nosave["playerdata"][tostring(id)]
-        end
-    end
+	if playerdatasave then
+		if idtoggle then
+			local sid = getsteam_id(id)
+			if sid == nil then
+				return nil
+			end
+			playerdata = g_savedata["playerdata"][tostring(sid)]
+		else
+			playerdata = g_savedata["playerdata"][tostring(id)]
+		end
+	else
+		if idtoggle then
+			local sid = getsteam_id(id)
+			if sid == nil then
+				return nil
+			end
+			playerdata = nosave["playerdata"][tostring(sid)]
+		else
+			playerdata = nosave["playerdata"][tostring(id)]
+		end
+	end
 
-    if playerdata == nil then
-        return nil
-    end
+	if playerdata == nil then
+		return nil
+	end
 
-    if get ~= nil then
-        return playerdata[get]
-    else
-        return playerdata
-    end
+	if get ~= nil then
+		return playerdata[get]
+	else
+		return playerdata
+	end
 end
 
 -- function to set playerdata
@@ -211,7 +215,7 @@ end
 -- player joined
 function onPlayerJoin(steam_id, name, peer_id, admin, auth)
 	sendannounce("[Server]", peer_id.." | "..name.." joined the game")
-	server.setPopupScreen(peer_id, 1, "auth", true, "You are not authed. type ?auth in chat to get authed", 0, 0)
+	server.setPopupScreen(peer_id, 3, "auth", true, "You are not authed. type ?auth in chat to get authed", 0, 0)
 	if testingwarning then
 		server.announce("[AusCode]", "Script is being worked on and there will be many script reloads", peer_id)
 		table.insert(chatMessages, {full_message="Script is being worked on and there will be many script reloads",name="[AusCode]",topid=peer_id})
@@ -232,11 +236,14 @@ function onPlayerLeave(steam_id, name, peer_id, admin, auth)
 			server.despawnVehicleGroup(group_id, true)
 		end
 	end
-	if enableplaytime then
-		updatePlaytime()
-	end
 	for i, player in pairs(playerlist) do
 		if player.id == peer_id then
+			if enableplaytime then
+				updatePlaytime()
+			end
+			if enablebackend then
+				updatePlaytimeToDB(steam_id)
+			end
 			table.remove(playerlist, i)
 		end
 	end
@@ -244,6 +251,7 @@ end
 
 -- geting the steam id off a peer id
 function getsteam_id(peer_id)
+	peer_id = tostring(peer_id)
 	if playerdatasave then
 		for _, playerdata in pairs(g_savedata["playerdata"]) do
 			if tostring(playerdata["peer_id"]) == tostring(peer_id) then
@@ -501,7 +509,7 @@ end
 
 -- format time
 function formattime(uptimeTicks, tickDuration)
-	uptimeTicks = uptimeTicks or 0
+	uptimeTicks = tonumber(uptimeTicks) or 0
 	tickDuration = 1000
 	local totalSeconds = math.floor(uptimeTicks / tickDuration)
 	local hours = math.floor(totalSeconds / 3600)
@@ -513,6 +521,30 @@ end
 -- removes characters that brake things
 function friendlystring(String)
 	return string.gsub(String, "[<]", "")
+end
+
+-- sends playtime to backend
+if enablebackend then
+	---@param steam_id string
+	function updatePlaytimeToDB(steam_id)
+		server.httpGet(backendport, "/data_post?name="..tostring(steam_id).."&value="..getPlayerdata("pt", false, steam_id))
+	end
+	function getPlaytimeFromDB(steam_id)
+		server.httpGet(backendport, "/data_get?name="..tostring(steam_id))
+	end
+	function httpReply(port, request, reply)
+		if startsWith(request, "/data_get") then
+			request = tostring(request)
+			setPlayerdata("pt", false, request:gsub("^/data_get%?name=%s*", ""), reply)
+			if debug_enabled then
+				sendannounce("[Debug]", "Playtime for "..request:gsub("^/data_get%?name=%s*", "").." is "..reply)
+			end
+		end
+	end
+end
+-- check if starts with
+function startsWith(str, value)
+	return str:sub(1, #value) == value
 end
 --endregion
 
@@ -636,24 +668,35 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				local m1 = server.getPlayerPos(two)
 				server.setPlayerPos(one, m1)
 			end
+		else
+			local m1 = server.getPlayerPos(one)
+			server.setPlayerPos(user_peer_id, m1)
 		end
 	end
 
 	-- teleport player to vehicle
 	if (command:lower() == "?tpv") then
 		commandfound = true
-		local worked = false
+		local cworked = false
 		if one ~= nil then
-			local parts = server.getVehicleGroup(one)
-			local vmatrix = server.getVehiclePos(parts[1], 0, 0, 0)
-			local x,y,z = matrix.position(vmatrix)
-			server.setPlayerPos(user_peer_id, matrix.translation(x,y+10,z))
-			worked = true
+			if type(tonumber(one)) == "number" then
+				local parts, vworked= server.getVehicleGroup(one)
+				if vworked then
+					local vmatrix, pworked = server.getVehiclePos(parts[1], 0, 0, 0)
+					if pworked then
+						local x,y,z = matrix.position(vmatrix)
+						server.setPlayerPos(user_peer_id, matrix.translation(x,y+10,z))
+						cworked = true
+					end
+				end
+			end
 		elseif one == nil then
 			server.notify(user_peer_id, "[Server]", "You have to input the vehicles group id of the vehicle you want to go to", 6)
 		end
-		if worked == true then
+		if cworked == true then
 			server.notify(user_peer_id, "[Server]", "You have been teleported to vehicle group: "..one, 5)
+		elseif cworked == false then
+			server.notify(user_peer_id, "[Server]", "Vehicle group: "..one.." does not exist", 6)
 		end
 	end
 
@@ -714,11 +757,14 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		if not is_auth then
 			server.addAuth(user_peer_id)
 			server.notify(user_peer_id, "[Server]", "You have been authed", 5)
-			server.removePopup(user_peer_id, 1)
+			server.removePopup(user_peer_id, 3)
 			setPlayerdata("ui", true, user_peer_id, false)
-			server.removePopup(user_peer_id, 0)
+			server.removePopup(user_peer_id, 2)
 			loop(3,
 				function(id)
+					if enablebackend then
+						getPlaytimeFromDB(getsteam_id(user_peer_id))
+					end
 					setPlayerdata("ui", true, user_peer_id, true)
 					removeLoop(id)
 				end
@@ -726,7 +772,21 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			table.insert(playerlist, {id=user_peer_id,steam_id=getsteam_id(user_peer_id),name=getPlayerdata("name", true, user_peer_id)})
 		else
 			server.notify(user_peer_id, "[Server]", "You are already authed", 6)
-			server.removePopup(user_peer_id, 1)
+			server.removePopup(user_peer_id, 3)
+			if user_peer_id == 0 and getPlayerdata("steam_id", true, user_peer_id) ~= 0 then
+				setPlayerdata("ui", true, user_peer_id, false)
+				server.removePopup(user_peer_id, 2)
+				loop(3,
+					function(id)
+						if enablebackend then
+							getPlaytimeFromDB(getsteam_id(user_peer_id))
+						end
+						setPlayerdata("ui", true, user_peer_id, true)
+						removeLoop(id)
+					end
+				)
+				table.insert(playerlist, {id=user_peer_id,steam_id=getsteam_id(user_peer_id),name=getPlayerdata("name", true, user_peer_id)})
+			end
 		end
 	end
 
@@ -1167,6 +1227,28 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		end
 	end
 
+	-- playtime leaderboard
+	if (command:lower() == "?ptlb") then
+		commandfound = true
+		if enableplaytime then
+			local playtimedata = {}
+			for sid, playedata in pairs(g_savedata["playerdata"]) do
+				if playedata["pt"] ~= nil then
+					table.insert(playtimedata, {sid=sid, pt=playedata["pt"]})
+				end
+			end
+			table.sort(playtimedata, function(a,b) return a.pt > b.pt end)
+			sendannounce("[Server]", "-=Playtime Leaderboard=-", user_peer_id)
+			local message = ""
+			for i, data in pairs(playtimedata) do
+				local name = getPlayerdata("name", true, getpeer_id(data["sid"]))
+				local pt = formattime(data["pt"])
+				message = message.."\n"..i..". "..getpeer_id(data["sid"]).." | "..name.." | "..pt
+			end
+			sendannounce("[Server]", message, user_peer_id)
+		end
+	end
+	
 	-- ui command
 	if (command:lower() == "?ui") then
 		commandfound = true
@@ -1189,9 +1271,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- lists all the commands
 	if (command:lower() == "?help") then
 		commandfound = true
-		sendannounce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group".."\n|?tpv [group_id]".."\n|teleports inputed vehicle group to you".."\n|?nick [reset/set] {nickname}".."\n|sets nickname and removes it".."\n|?vi [group_id]".."\n|tells you info about inputed group_id", user_peer_id)
+		sendannounce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group".."\n|?nick [reset/set] {nickname}".."\n|sets nickname and removes it".."\n|?vi [group_id]".."\n|tells you info about inputed group_id".."\n|?ptlb".."\n|lists all players playtime in order", user_peer_id)
 		if perms >= PermMod then
-			sendannounce("[Server]", "-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?ca".."\n|clears all vehicles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehicles of inputed players ids".."\n|?forceas [peer_id] {true/false}".."\n|toggles as for inputed peer id".."\n|?forcepvp [peer_id] {true/false}".."\n|toggles pvp for inputed peer id".."\n|?clearchat".."\n|clears chat", user_peer_id)
+			sendannounce("[Server]", "-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?warn [peer_id] {reason}".."\n|warns selected player".."\n|?ca".."\n|clears all vehicles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehicles of inputed players ids".."\n|?forceas [peer_id] {true/false}".."\n|toggles as for inputed peer id".."\n|?forcepvp [peer_id] {true/false}".."\n|toggles pvp for inputed peer id".."\n|?clearchat".."\n|clears chat", user_peer_id)
 		end
 	end
 
@@ -1305,13 +1387,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?test") then
 		commandfound = true
 		if perms >= PermOwner then
-			if one == nil then
-				updatePlaytime()
-				sendannounce("[Test]", formattime(getPlayerdata("pt",true,user_peer_id)).."\n"..getPlayerdata("pt",true,user_peer_id), user_peer_id)
-			elseif one ~= nil then
-				setPlayerdata("pt", true, two, one)
-				sendannounce("[Test]", formattime(getPlayerdata("pt",true,two)).."\n"..getPlayerdata("pt",true,two), user_peer_id)
-			end
+			getPlaytimeFromDB(getsteam_id(user_peer_id))
 		end
 	end
 
@@ -1427,6 +1503,10 @@ function onTick(game_ticks)
 	updateUI()
 	loopManager()
 	
+	-- pvp effects
+	if pvpeffects then
+		updatePVPEffects()
+	end
 	-- custom chat
 	if customchat then
 		if sendChat then
@@ -1442,19 +1522,19 @@ end
 
 -- tps function
 function updateTPS(game_ticks)
-    local tempo = server.getTimeMillisec()
+	local tempo = server.getTimeMillisec()
 
-    if tempo - TIME < 1996 then
-        TICKS = TICKS + (game_ticks * 0.49875)
-    else
-        -- TICKS remains the same
-    end
+	if tempo - TIME < 1996 then
+		TICKS = TICKS + (game_ticks * 0.49875)
+	else
+		-- TICKS remains the same
+	end
 
-    if tempo - TIME >= 1996 then
-        TPS = TICKS
-        TIME = tempo
-        TICKS = 0
-    end
+	if tempo - TIME >= 1996 then
+		TPS = TICKS
+		TIME = tempo
+		TICKS = 0
+	end
 end
 
 -- playtime manager
@@ -1464,7 +1544,7 @@ function updatePlaytime()
 		for _, player in pairs(playerlist) do
 			local peer_id = player.id
 			if peer_id ~= nil then
-				local playtime = getPlayerdata("pt", true, peer_id) or 0
+				local playtime = tonumber(getPlayerdata("pt", true, peer_id)) or 0
 				local lastUpdate = getPlayerdata("ptlu", true, peer_id) or currentTime
 				playtime = (playtime + (currentTime - lastUpdate)) or 0
 				setPlayerdata("pt", true, peer_id, playtime)
@@ -1493,6 +1573,31 @@ function updatePlaytime()
 					local name = getPlayerdata("name", true, peer_id)
 					sendannounce("[Playtime]", peer_id.." | "..name.." has reached 10 hours of playtime")
 					setPlayerdata("ptachivment", true, peer_id, 6)
+				end
+			end
+		end
+	end
+end
+
+function updatePVPEffects() --Made by: Sedrowow
+	-- Update PVP status effects (healing and revival)
+	for _, playerdata in pairs(playerlist) do
+		local is_pvp = getPlayerdata("pvp",true,playerdata.id)
+		if not is_pvp then -- If PVP is disabled
+			-- Get player's character ID
+			local object_id, is_success = server.getPlayerCharacterID(playerdata.id)
+			if is_success then
+				-- Get character data
+				local char_data = server.getObjectData(object_id)
+				if char_data then
+					-- Revive if dead or incapacitated
+					if char_data.dead or char_data.incapacitated then
+						server.reviveCharacter(object_id)
+					end
+					-- Heal if damaged
+					if char_data.hp < 100 then
+						server.setCharacterData(object_id, 100, true, false)
+					end
 				end
 			end
 		end
@@ -1575,9 +1680,9 @@ function updateUI()
 					local pas = tostring(getPlayerdata("as", true, X.id)) or "unknown"
 					if enableplaytime then
 						local pt = formattime(getPlayerdata("pt", true, X.id)) or "unknown"
-						server.setPopupScreen(peer_id, 0, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Playtime=-\n"..pt.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.75)
+						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Playtime=-\n"..pt.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.75)
 					else
-						server.setPopupScreen(peer_id, 0, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
+						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
 					end
 				end
 			end
@@ -1590,52 +1695,52 @@ end
 --region Loop Manager
 local loops = {}
 function loop(time, func)
-    local id = #loops + 1
+	local id = #loops + 1
 
-    loops[id] = {
-        callback = func,
-        time = time,
-        creationTime = server.getTimeMillisec(),
-        id = id,
-        paused = false
-    }
+	loops[id] = {
+		callback = func,
+		time = time,
+		creationTime = server.getTimeMillisec(),
+		id = id,
+		paused = false
+	}
 
-    return {
-        properties = loops[id],
+	return {
+		properties = loops[id],
 
-        edit = function(self, newTime)
-            self.properties.time = newTime
-        end,
+		edit = function(self, newTime)
+			self.properties.time = newTime
+		end,
 
-        call = function(self)
-            self.properties.callback()
-        end,
+		call = function(self)
+			self.properties.callback()
+		end,
 
-        remove = function(self)
-            loops[id] = nil
-            self = nil
-        end,
+		remove = function(self)
+			loops[id] = nil
+			self = nil
+		end,
 
-        setPaused = function(self, state)
-            self.paused = state
-        end,
+		setPaused = function(self, state)
+			self.paused = state
+		end,
 
-        id = id
-    }
+		id = id
+	}
 end
 
 function removeLoop(id)
-    loops[id] = nil
+	loops[id] = nil
 end
 
 function loopManager()
-    local timeNow = server.getTimeMillisec()
-    for _, v in pairs(loops) do
-        if timeNow >= v.creationTime + (v.time * 1000) and not v.paused then
-            v.callback(v.id)
-            v.creationTime = timeNow
-        end
-    end
+	local timeNow = server.getTimeMillisec()
+	for _, v in pairs(loops) do
+		if timeNow >= v.creationTime + (v.time * 1000) and not v.paused then
+			v.callback(v.id)
+			v.creationTime = timeNow
+		end
+	end
 end
 --endregion
 
@@ -1680,10 +1785,19 @@ function onCreate(is_world_create)
 			updatePlaytime()
 		end)
 	end
+	playerlist = {}
 	for _, player in pairs(server.getPlayers()) do
 		if player.steam_id ~= 0 then
 			table.insert(playerlist, {id=player.id, steam_id=player.steam_id, name=player.name})
 		end
+	end
+	if enablebackend then
+		loop(playtimetodbfrequency,
+		function(id)
+			for _, player in pairs(playerlist) do
+				updatePlaytimeToDB(player.steam_id)
+			end
+		end)
 	end
 end
 --endregion
