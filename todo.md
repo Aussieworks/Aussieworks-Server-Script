@@ -9,9 +9,8 @@ script stuff
 | Todo | Progress |
 | --- | :---: |
 | Voxel / tps based antilag | 🟡 |
-| Ui | 🟢 |
+| Add spawned vehicles to UI | 🔴 |
 | Tps limiting | 🔴 |
 | Custom weather | 🟡 |
 | Make heartbeat http and backend for auto restarts | 🟡 |
-| Add bypasses for limmiting max vehicles ect | 🟢 |
-| Add item deletion when drop | 🟢 |
+| add checks to commands that can cause script crashes | 🔴 |
