@@ -544,7 +544,7 @@ function heartbeat()
 	if not enablebackend then
 		return
 	end
-	server.httpGet(backendport, "/hearbeat/"..tostring(servernumber))
+	server.httpGet(backendport, "/heartbeat/"..tostring(servernumber))
 end
 function sendJoin(steam_id)
 	if not enablebackend then
