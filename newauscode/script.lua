@@ -50,6 +50,8 @@ permtonick = PermAdmin
 enableplaytime = true
 enablebackend = true -- requires backend to be running. and also requires the backend to be from AusCode, otherwise it may not work
 backendport = 8000
+heartbeatfrequency = 5
+servernumber = 1 -- this corresponds to what number your server is. for example 1 would be server1. this only matters if you are using the backend and the server control scripts.
 playtimetodbfrequency = 60 -- in seconds
 playtimeupdatefrequency = 10 -- in seconds
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
@@ -63,7 +65,7 @@ TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
 tickDuration = 1000
-scriptversion = "v1.6.5-Testing"
+scriptversion = "v1.6.6-Testing"
 
 
 
@@ -223,6 +225,7 @@ function onPlayerJoin(steam_id, name, peer_id, admin, auth)
 	server.removeAuth(peer_id)
 	sendChat = true
 	playerint(steam_id, peer_id)
+	sendJoin(steam_id)
 end
 
 -- player leave
@@ -242,7 +245,7 @@ function onPlayerLeave(steam_id, name, peer_id, admin, auth)
 				updatePlaytime()
 			end
 			if enablebackend then
-				updatePlaytimeToDB(steam_id)
+				sendPlaytime(steam_id)
 			end
 			table.remove(playerlist, i)
 		end
@@ -523,25 +526,49 @@ function friendlystring(String)
 	return string.gsub(String, "[<]", "")
 end
 
--- sends playtime to backend
-if enablebackend then
-	---@param steam_id string
-	function updatePlaytimeToDB(steam_id)
-		server.httpGet(backendport, "/data_post?name="..tostring(steam_id).."&value="..getPlayerdata("pt", false, steam_id))
+-- Backend things
+---@param steam_id string
+function sendPlaytime(steam_id)
+	if not enablebackend then
+		return
 	end
-	function getPlaytimeFromDB(steam_id)
-		server.httpGet(backendport, "/data_get?name="..tostring(steam_id))
+	server.httpGet(backendport, "/player/playtime/post?steam_id="..tostring(steam_id).."&playtime="..getPlayerdata("pt", false, steam_id))
+end
+function getPlaytime(steam_id)
+	if not enablebackend then
+		return
 	end
-	function httpReply(port, request, reply)
-		if startsWith(request, "/data_get") then
-			request = tostring(request)
-			setPlayerdata("pt", false, request:gsub("^/data_get%?name=%s*", ""), reply)
-			if debug_enabled then
-				sendannounce("[Debug]", "Playtime for "..request:gsub("^/data_get%?name=%s*", "").." is "..reply)
-			end
+	server.httpGet(backendport, "/player/playtime/get?steam_id="..tostring(steam_id))
+end
+function heartbeat()
+	if not enablebackend then
+		return
+	end
+	server.httpGet(backendport, "/hearbeat/"..tostring(servernumber))
+end
+function sendJoin(steam_id)
+	if not enablebackend then
+		return
+	end
+	server.httpGet(backendport, "/player/join?steam_id="..tostring(steam_id))
+end
+function sendWarn(steam_id)
+	if not enablebackend then
+		return
+	end
+	server.httpGet(backendport, "/player/warn?steam_id="..tostring(steam_id))
+end
+function httpReply(port, request, reply)
+	if startsWith(request, "/player/playtime/get") then
+		request = tostring(request)
+		setPlayerdata("pt", false, request:gsub("^/player/playtime/get%?steam_id=%s*", ""), reply)
+		if debug_enabled then
+			sendannounce("[Debug]", "Playtime for "..request:gsub("^/player/playtime/get%?steam_id=%s*", "").." is "..reply)
 		end
 	end
 end
+--endregion
+
 -- check if starts with
 function startsWith(str, value)
 	return str:sub(1, #value) == value
@@ -763,7 +790,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			loop(3,
 				function(id)
 					if enablebackend then
-						getPlaytimeFromDB(getsteam_id(user_peer_id))
+						getPlaytime(getsteam_id(user_peer_id))
 					end
 					setPlayerdata("ui", true, user_peer_id, true)
 					removeLoop(id)
@@ -779,7 +806,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				loop(3,
 					function(id)
 						if enablebackend then
-							getPlaytimeFromDB(getsteam_id(user_peer_id))
+							getPlaytime(getsteam_id(user_peer_id))
 						end
 						setPlayerdata("ui", true, user_peer_id, true)
 						removeLoop(id)
@@ -817,6 +844,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			elseif warns < warnactionthreashold then
 				setPlayerdata("warns", true, one, tostring(warns))
 			end
+			sendWarn(getsteam_id(one))
 		end
 	end
 --endregion
@@ -1387,7 +1415,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?test") then
 		commandfound = true
 		if perms >= PermOwner then
-			getPlaytimeFromDB(getsteam_id(user_peer_id))
+			getPlaytime(getsteam_id(user_peer_id))
 		end
 	end
 
@@ -1795,8 +1823,12 @@ function onCreate(is_world_create)
 		loop(playtimetodbfrequency,
 		function(id)
 			for _, player in pairs(playerlist) do
-				updatePlaytimeToDB(player.steam_id)
+				sendPlaytime(player.steam_id)
 			end
+		end)
+		loop(heartbeatfrequency,
+		function()
+			heartbeat()
 		end)
 	end
 end
