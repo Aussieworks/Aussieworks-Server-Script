@@ -16,7 +16,7 @@ server_timers = {}
 
 app = FastAPI()
 
-db = peewee.SqliteDatabase('C:\Server_Stuffs\data.db')
+db = peewee.SqliteDatabase('C:/swds/servers/backend/data.db')
 
 class Data(peewee.Model):
     steam_id = peewee.CharField(unique=True)
@@ -41,8 +41,8 @@ class DataRequest(BaseModel):
     name: str
     value: int
 
-@app.get("/players/playtime/post")
-async def players_playtime_post(steam_id: str, playtime: int):
+@app.get("/player/playtime/post")
+async def player_playtime_post(steam_id: str, playtime: int):
     logger.debug(f"Received data request")
     try:
         (data, _) = Data.get_or_create(steam_id=steam_id)
@@ -53,8 +53,8 @@ async def players_playtime_post(steam_id: str, playtime: int):
         logger.error(f"Error creating data: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/players/playtime/get")
-async def players_playtime_get(steam_id: str):
+@app.get("/player/playtime/get")
+async def player_playtime_get(steam_id: str):
     try:
         data = Data.get(steam_id=steam_id)
         logger.debug(f"Retrieved data: {data}")
@@ -63,8 +63,8 @@ async def players_playtime_get(steam_id: str):
         logger.error(f"Error retrieving data: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     
-@app.get("/players/join")
-async def players_join(steam_id: str):
+@app.get("/player/join")
+async def player_join(steam_id: str):
     logger.debug(f"Received data request")
     try:
         (data, _) = Data.get_or_create(steam_id=steam_id)
@@ -75,8 +75,8 @@ async def players_join(steam_id: str):
         logger.error(f"Error creating data: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     
-@app.get("/players/warn")
-async def players_warn(steam_id: str):
+@app.get("/player/warn")
+async def player_warn(steam_id: str):
     logger.debug(f"Received data request")
     try:
         (data, _) = Data.get_or_create(steam_id=steam_id)
@@ -87,8 +87,8 @@ async def players_warn(steam_id: str):
         logger.error(f"Error creating data: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/players/banned/post")
-async def players_banned_post(steam_id: str):
+@app.get("/player/banned/post")
+async def player_banned_post(steam_id: str):
     logger.debug(f"Received data request")
     try:
         (data, _) = Data.get_or_create(steam_id=steam_id)
@@ -99,8 +99,8 @@ async def players_banned_post(steam_id: str):
         logger.error(f"Error creating data: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     
-@app.get("/players/unbanned/post")
-async def players_banned_post(steam_id: str):
+@app.get("/player/unbanned/post")
+async def player_banned_post(steam_id: str):
     logger.debug(f"Received data request")
     try:
         (data, _) = Data.get_or_create(steam_id=steam_id)
@@ -111,8 +111,8 @@ async def players_banned_post(steam_id: str):
         logger.error(f"Error creating data: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/players/banned/get")
-async def players_banned_get(steam_id: str):
+@app.get("/player/banned/get")
+async def player_banned_get(steam_id: str):
     try:
         data = Data.get(steam_id=steam_id)
         logger.debug(f"Retrieved data: {data}")
@@ -127,7 +127,7 @@ async def heartbeat(server_num: str):
         # If no timer exists for the server, create a new one
         if server_num not in server_timers or not server_timers[server_num]:
             # Create a ResettableTimer instance and pass server_num as an argument to server_restart
-            server_timers[server_num] = ResettableTimer(15, server_restart, server_num)
+            server_timers[server_num] = ResettableTimer(60, server_restart, server_num)
             server_timers[server_num].start()  # Start the timer immediately
         else:
             # Reset the timer if it already exists
