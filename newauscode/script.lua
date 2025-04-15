@@ -561,9 +561,24 @@ end
 function httpReply(port, request, reply)
 	if startsWith(request, "/player/playtime/get") then
 		request = tostring(request)
-		setPlayerdata("pt", false, request:gsub("^/player/playtime/get%?steam_id=%s*", ""), reply)
+		local sid = request:gsub("^/player/playtime/get%?steam_id=%s*", "")
+		setPlayerdata("pt", false, sid, reply)
+		local playtime = tonumber(reply) or 0
+		if playtime >= 36000000 then
+			setPlayerdata("ptachivment", false, sid, 6)
+		elseif playtime >= 28800000 then
+			setPlayerdata("ptachivment", false, sid, 5)
+		elseif playtime >= 14400000 then
+			setPlayerdata("ptachivment", false, sid, 4)
+		elseif playtime >= 7200000 then
+			setPlayerdata("ptachivment", false, sid, 3)
+		elseif playtime >= 3600000 then
+			setPlayerdata("ptachivment", false, sid, 2)
+		elseif playtime >= 1800000 then
+			setPlayerdata("ptachivment", false, sid, 1)
+		end
 		if debug_enabled then
-			sendannounce("[Debug]", "Playtime for "..request:gsub("^/player/playtime/get%?steam_id=%s*", "").." is "..reply)
+			sendannounce("[Debug]", "Playtime for "..sid.." is "..reply)
 		end
 	end
 end
