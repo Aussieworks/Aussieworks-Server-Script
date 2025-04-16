@@ -234,10 +234,8 @@ end
 function onPlayerLeave(steam_id, name, peer_id, admin, auth)
 	sendannounce("[Server]", peer_id.." | "..name.." left the game")
 	local ownersteamid = getsteam_id(peer_id)
-	local vehiclespawned = false
 	for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 		if GroupData["ownersteamid"] == ownersteamid then
-			vehiclespawned = true
 			server.despawnVehicleGroup(group_id, true)
 		end
 	end
@@ -1500,6 +1498,9 @@ end
 --Misc functions
 -- tip messages
 function updateTips()
+	if not tips then
+		return
+	end
 	local playercount = #playerlist
 	if playercount >= 1 then
 		tiptimer = tiptimer + 1
