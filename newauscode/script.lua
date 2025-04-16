@@ -56,6 +56,8 @@ playtimetodbfrequency = 60 -- in seconds
 playtimeupdatefrequency = 10 -- in seconds
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 180  -- in seconds
+tips = true -- if true then tips will be shown in chat
+tipmessages = {"use ?help to get a list of all the available commands","use ?auth if you dont have permision to use a workbench","we have a discord server. dont forget to join. "..discordlink.." or run the command ?disc","use ?as or ?antisteal to toggle your personal antisteal","use ?pvp to toggle your personal pvp","use ?ui to toggle your personal ui"} -- list of tips that will be shown in chat
 debug_enabled = false -- currently not fully implemented
 -- dont touch
 tiptimer = 0
@@ -1430,7 +1432,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?test") then
 		commandfound = true
 		if perms >= PermOwner then
-			getPlaytime(getsteam_id(user_peer_id))
+			getPlaytime(tostring(user_peer_id))
 		end
 	end
 
@@ -1497,37 +1499,18 @@ end
 
 --Misc functions
 -- tip messages
-function tipMessages()
-	local playercount = countitems(server.getPlayers()) - 1
+function updateTips()
+	local playercount = #playerlist
 	if playercount >= 1 then
 		tiptimer = tiptimer + 1
 		if tiptimer >= tipFrequency*60 then
-			if tipstep == 1 then
-				sendannounce("[Tip]", "use ?help to get a list of all the available commands")
-				tiptimer = 0
-			end
-			if tipstep == 2 then
-				sendannounce("[Tip]", "use ?auth if you dont have permision to use a workbench")
-				tiptimer = 0
-			end
-			if tipstep == 3 then
-				sendannounce("[Tip]", "we have a discord server. dont forget to join. "..discordlink.." or run the command ?disc")
-				tiptimer = 0
-			end
-			if tipstep == 4 then
-				sendannounce("[Tip]", "use ?as or ?antisteal to toggle your personal antisteal")
-				tiptimer = 0
-			end
-			if tipstep == 5 then
-				sendannounce("[Tip]", "use ?pvp to toggle your personal pvp")
-				tiptimer = 0
-			end
-			if tipstep == 6 then
-				sendannounce("[Tip]", "use ?ui to toggle your personal ui")
-				tiptimer = 0
+			sendannounce("[Tip]", tipmessages[tipstep])
+			if tipstep >= #tipmessages then
 				tipstep = 1
+			else
+				tipstep = tipstep + 1
 			end
-			tipstep = tipstep + 1
+			tiptimer = 0
 		end
 	end
 end
@@ -1541,7 +1524,7 @@ function onTick(game_ticks)
 	ut = formatUptime(uptimeTicks, tickDuration)
 	
 	-- calls functions
-	tipMessages()
+	updateTips()
 	updateTPS(game_ticks)
 	updateUI()
 	loopManager()
