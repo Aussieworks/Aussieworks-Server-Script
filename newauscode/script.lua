@@ -221,8 +221,7 @@ function onPlayerJoin(steam_id, name, peer_id, admin, auth)
 	sendannounce("[Server]", peer_id.." | "..name.." joined the game")
 	server.setPopupScreen(peer_id, 3, "auth", true, "You are not authed. type ?auth in chat to get authed", 0, 0)
 	if testingwarning then
-		server.announce("[AusCode]", "Script is being worked on and there will be many script reloads", peer_id)
-		table.insert(chatMessages, {full_message="Script is being worked on and there will be many script reloads",name="[AusCode]",topid=peer_id})
+		sendannounce("[AusCode]", "Script is being worked on and there will be many script reloads", peer_id)
 	end
 	server.removeAuth(peer_id)
 	sendChat = true
@@ -1329,8 +1328,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				sendannounce("[Server]", "Weather has been set to".."\nFog: "..one.."\nRain: "..two.."\nWind: "..three)
 			elseif one == "reset" then
 				server.setWeather(0, 0, 0)
-				server.announce("[Server]", "Weather has been reset")
-				table.insert(chatMessages, {full_message="Weather has been reset",name="[Server]"})
+				sendannounce("[Server]", "Weather has been reset")
 			end
 		end
 	end
@@ -1700,7 +1698,7 @@ function updateUI()
 			local ut = formatUptime(uptimeTicks, tickDuration)
 			local TPS = string.format("%.0f",TPS)
 			for _,X in pairs(playerlist) do
-				local sid = getsteam_id(X.id)
+				local sid = X.steam_id
 				if sid ~= 0 then
 					local peer_id=X.id
 					local pvp = tostring(getPlayerdata("pvp", true, X.id)) or "unknown"
