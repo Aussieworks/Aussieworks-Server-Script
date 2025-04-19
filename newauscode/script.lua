@@ -13,7 +13,7 @@ PermAdmin = 3
 PermOwner = 4
 
 -- admin list. formating: adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin}}
-adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561198371768441",PermAdmin},{"76561199032157360",PermAdmin},{"76561198170233995",PermAdmin},{"76561199514304709",PermAdmin},{"76561198453848694",PermAdmin},{"76561199477098490",PermMod}}
+adminlist = {{"76561199240115313",PermOwner},{"76561199143631975",PermAdmin},{"76561199032157360",PermAdmin},{"76561198170233995",PermAdmin},{"76561199514304709",PermAdmin},{"76561198453848694",PermAdmin},{"76561199477098490",PermMod}}
 
 -- tables
 nosave = {playerdata={}} -- list that doesnt save
@@ -543,7 +543,7 @@ function heartbeat()
 	if not enablebackend then
 		return
 	end
-	server.httpGet(backendport, "/heartbeat/"..tostring(servernumber))
+	server.httpGet(backendport, "/heartbeat/"..tostring(servernumber).."?tps="..tostring(math.floor(TPS)).."&players="..tostring(#playerlist))
 end
 function sendJoin(steam_id)
 	if not enablebackend then
