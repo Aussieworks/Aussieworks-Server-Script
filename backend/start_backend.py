@@ -5,18 +5,29 @@ import uvicorn # type: ignore
 import logging
 import asyncio
 import httpx
-from functools import partial  # Import partial to pass arguments to the function
+from contextlib import asynccontextmanager
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Timers table
-server_timers = {}
+# Shared by both FastAPI and Discord updater
+server_states = {}  # { server_num: {"tps": "0", "players": "0"} }
+server_timers = {}  # { server_num: ResettableTimer }
 
-app = FastAPI()
 
-db = peewee.SqliteDatabase('C:/swds/servers/backend/data.db')
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start background task when app starts
+    task = asyncio.create_task(update_discord_webhook())
+    yield
+    # You could cancel the task here if needed:
+    task.cancel()
+
+app = FastAPI(lifespan=lifespan)
+
+db = peewee.SqliteDatabase(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data.db'))
 
 class Data(peewee.Model):
     steam_id = peewee.CharField(unique=True)
@@ -122,19 +133,23 @@ async def player_banned_get(steam_id: str):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/heartbeat/{server_num}")
-async def heartbeat(server_num: str):
+async def heartbeat(server_num: int, tps: str, players: str):
+    logger.debug(f"Received heartbeat from server {server_num} with TPS {tps} and player count {players}")
+
     try:
-        # If no timer exists for the server, create a new one
+        update_server_data(server_num, tps, players)
         if server_num not in server_timers or not server_timers[server_num]:
-            # Create a ResettableTimer instance and pass server_num as an argument to server_restart
             server_timers[server_num] = ResettableTimer(60, server_restart, server_num)
-            server_timers[server_num].start()  # Start the timer immediately
+            server_timers[server_num].start()
         else:
-            # Reset the timer if it already exists
             server_timers[server_num].reset()
-        return {"message": f"Heartbeat received for server {server_num}"}
+
+        return {"message": f"Heartbeat received for server #{server_num}"}
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Error handling heartbeat for server {server_num}: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
 class ResettableTimer:
@@ -167,12 +182,105 @@ async def server_restart(server):
         try:
             logger.info("Sending GET request to /server/all/restart")
             response = await client.get("http://localhost:8001/server/"+str(server)+"/restart")
+            logger.warning(f"No heartbeat from server {server} — resetting stats.")
+            update_server_data(server, "0", "0")
             if response.status_code == 200:
                 logger.info("Server restart triggered successfully")
             else:
                 logger.error(f"Failed to restart server: {response.status_code}")
         except httpx.RequestError as e:
             logger.error(f"An error occurred while making the request: {e}")
+
+
+# Discord bot related code
+from discord_webhook import DiscordWebhook, DiscordEmbed
+from time import sleep
+import json
+import datetime
+from threading import Lock
+
+STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webhook_state.json")
+SERVERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servers.json")
+WEBHOOK_URL = ""  # your webhook URL
+
+def load_message_id():
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r") as f:
+            return json.load(f).get("message_id")
+    return None
+
+def save_message_id(message_id):
+    with open(STATE_FILE, "w") as f:
+        json.dump({"message_id": message_id}, f)
+
+def load_servers():
+    if os.path.exists(SERVERS_FILE):
+        with open(SERVERS_FILE, "r") as f:
+            return json.load(f).get("servers", [])
+    return []
+json_lock = Lock()  # Prevent simultaneous writes
+
+def load_servers():
+    if os.path.exists(SERVERS_FILE):
+        with open(SERVERS_FILE, "r") as f:
+            return json.load(f).get("servers", [])
+    return []
+
+def update_server_data(server_num: int, tps: str, player_count: str):
+        server_states[server_num] = {
+            "tps": tps,
+            "players": player_count
+        }
+
+
+async def update_discord_webhook():
+    try:
+        message_id = load_message_id()
+
+        if not message_id:
+            logger.info("No existing message found. Creating new one.")
+            webhook = DiscordWebhook(url=WEBHOOK_URL, wait=True)
+            embed = DiscordEmbed(title="Server Status", description="", color="008000")
+            embed.set_footer(text="Initializing...")
+            webhook.add_embed(embed)
+            response = webhook.execute()
+            message_id = response.json()["id"]
+            save_message_id(message_id)
+        else:
+            logger.info(f"Found existing message ID: {message_id}")
+
+        while True:
+            await asyncio.sleep(30)
+            servers = load_servers()
+            now = datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
+
+            lines = []
+            for srv in servers:
+                num = srv["number"]
+                name = srv["name"]
+                state = server_states.get(num, {"tps": "0", "players": "0"})
+                lines.append(f"**{name}**")
+                lines.append(f"  *TPS:* {state['tps']}")
+                lines.append(f"  *Players:* {state['players']}")
+                lines.append("")
+
+            embed = DiscordEmbed(
+                title="Server Status",
+                description="\n".join(lines).strip(),
+                color="008000"
+            )
+            embed.set_footer(text=f"Last Updated: {now}")
+
+            edit_webhook = DiscordWebhook(url=WEBHOOK_URL, id=message_id, wait=True)
+            edit_webhook.embeds = [embed]
+            edit_webhook.edit()
+
+            logger.info("Updated webhook with current server list")
+
+    except asyncio.CancelledError:
+        logger.info("Webhook updater task was cancelled.")
+    except Exception as e:
+        logger.error(f"Error in webhook updater: {e}")
 
 if __name__ == "__main__":
     logger.info("Starting FastAPI application")
