@@ -375,7 +375,7 @@ end
 -- on vehicle spawn 
 function onGroupSpawn(group_id, peer_id, x, y, z, group_cost)
 	local sid = getsteam_id(peer_id)
-	if sid ~= "0" then
+	if sid ~= 0 then
 		loop(0.5,
 		function(id)
 			local groupdata, is_success = server.getVehicleGroup(group_id)
@@ -914,7 +914,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		else
 			server.notify(user_peer_id, "[Server]", "You are already authed", 6)
 			server.removePopup(user_peer_id, 3)
-			if user_peer_id == 0 and getPlayerdata("steam_id", true, user_peer_id) ~= "0" then
+			if user_peer_id == 0 and getPlayerdata("steam_id", true, user_peer_id) ~= 0 then
 				setPlayerdata("ui", true, user_peer_id, false)
 				server.removePopup(user_peer_id, 2)
 				loop(3,
@@ -1719,7 +1719,7 @@ function updateUI()
 			local TPS = string.format("%.0f",TPS)
 			for _,X in pairs(playerlist) do
 				local sid = X.steam_id
-				if sid ~= "0" then
+				if sid ~= 0 then
 					local peer_id=X.id
 					local pvp = tostring(getPlayerdata("pvp", true, X.id)) or "unknown"
 					local pas = tostring(getPlayerdata("as", true, X.id)) or "unknown"
@@ -1832,7 +1832,7 @@ function onCreate(is_world_create)
 	end
 	playerlist = {}
 	for _, player in pairs(server.getPlayers()) do
-		if player.steam_id ~= "0" then
+		if player.steam_id ~= 0 then
 			table.insert(playerlist, {id=player.id, steam_id=player.steam_id, name=player.name})
 		end
 	end
