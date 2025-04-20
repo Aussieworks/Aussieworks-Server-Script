@@ -19,11 +19,11 @@ server_timers = {}  # { server_num: ResettableTimer }
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Start background task when app starts
-    task = asyncio.create_task(update_discord_webhook())
+    task1 = asyncio.create_task(update_discord_webhook())
+    task2 = asyncio.create_task(purge_stale_servers())
     yield
-    # You could cancel the task here if needed:
-    task.cancel()
+    task1.cancel()
+    task2.cancel()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -183,7 +183,6 @@ async def server_restart(server):
             logger.info("Sending GET request to /server/all/restart")
             response = await client.get("http://localhost:8001/server/"+str(server)+"/restart")
             logger.warning(f"No heartbeat from server {server} — resetting stats.")
-            update_server_data(server, "0", "0")
             if response.status_code == 200:
                 logger.info("Server restart triggered successfully")
             else:
@@ -194,14 +193,15 @@ async def server_restart(server):
 
 # Discord bot related code
 from discord_webhook import DiscordWebhook, DiscordEmbed
-from time import sleep
+
+import time
 import json
 import datetime
 from threading import Lock
 
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webhook_state.json")
 SERVERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servers.json")
-WEBHOOK_URL = ""  # your webhook URL
+WEBHOOK_URL = "https://discord.com/api/webhooks/1363114134803185734/mSJMZXySPxg5c6yKSM43OhGwJJsePA6C6ZpDrQttaWqxkUNYF0RhV7SWLwuSuETMZQu_"  # your webhook URL
 
 def load_message_id():
     if os.path.exists(STATE_FILE):
@@ -227,11 +227,23 @@ def load_servers():
     return []
 
 def update_server_data(server_num: int, tps: str, player_count: str):
-        server_states[server_num] = {
-            "tps": tps,
-            "players": player_count
-        }
+    server_states[server_num] = {
+        "tps": tps,
+        "players": player_count,
+        "last_seen": time.time(),
+        "purged": False  # new or updated heartbeat
+    }
 
+async def purge_stale_servers():
+    while True:
+        now = time.time()
+        for server_num, state in list(server_states.items()):
+            if not state.get("purged", False) and now - state.get("last_seen", 0) > 15:
+                logger.warning(f"Purging server {server_num} due to inactivity.")
+                state["tps"] = "0"
+                state["players"] = "0"
+                state["purged"] = True
+        await asyncio.sleep(5)
 
 async def update_discord_webhook():
     try:
