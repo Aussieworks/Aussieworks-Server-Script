@@ -67,7 +67,7 @@ TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
 tickDuration = 1000
-scriptversion = "v1.6.6-Testing"
+scriptversion = "v1.7.0-Testing"
 
 
 
@@ -356,18 +356,21 @@ function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
 			g_savedata["usercreations"][tostring(group_id)]["Vehicleparts"][tostring(vehicle_id)] = 1
 			local ownersteamid = getsteam_id(peer_id)
 			local vehiclespawned = 0
-			local despawned = false
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 				if GroupData["ownersteamid"] == ownersteamid then
-					vehiclespawned = vehiclespawned + 1
+					local groupdata, gexists = server.getVehicleGroup(group_id)
+					if gexists then
+						vehiclespawned = vehiclespawned + 1
+					else
+						g_savedata["usercreations"][tostring(group_id)] = nil
+					end
 					if vehiclespawned > playermaxvehicles then
-						despawned = true
 						server.despawnVehicleGroup(group_id, true)
 						server.notify(peer_id, "[Server]", "You can only have "..playermaxvehicles.." vehicle spawned at a time", 6)
+
 					end
 				end
 			end
-
 		end
 	end
 end
@@ -476,6 +479,20 @@ function onGroupDespawn(group_id, peer_id)
 	server.setCurrency(nm, 0)
 	g_savedata["usercreations"][tostring(group_id)] = nil
 end
+
+-- get a players vehicle groups
+function getPlayerVehicleGroups(peer_id)
+	local groups = {}
+	local ownersteamid = getsteam_id(peer_id)
+	for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+		if GroupData["ownersteamid"] == ownersteamid then
+			GroupData["group_id"] = group_id
+			table.insert(groups, GroupData)
+		end
+	end
+	return groups
+end
+
 
 -- count stuffs
 function countitems(list)
@@ -726,40 +743,53 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?pi") then
 		commandfound = true
 		if one ~= nil then
-			local sid = "Unknown"
-			local name = "Unknown"
-			local pvp = "Unknown"
-			local was = "Unknown"
-			local wui = "Unknown"
-			local nms = "Unknown"
-			local pt = "Unknown"
-			local pta = "Unknown"
-			if perms >= PermAdmin then
-				local playerdata = getPlayerdata(nil, true, one)
-				sid = playerdata["steam_id"]
-				name = playerdata["name"]
-				local warns = playerdata["warns"]
-				if playerdata["as"] ~= nil then
-					was = tostring(playerdata["as"])
-				end
-				if playerdata["pvp"] ~= nil then
-					pvp = tostring(playerdata["pvp"])
-				end
-				if playerdata["ui"] ~= nil then
-					wui = tostring(playerdata["ui"])
-				end
-				if playerdata["nicked"] ~= nil then
-					nms = tostring(playerdata["nicked"])
-				end
-				if enableplaytime then
-					if playerdata["pt"] ~= nil then
-						pt = formattime(playerdata["pt"])
+			if server.getPlayerName(one) == "" then
+				server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
+			else
+				local sid = "Unknown"
+				local name = "Unknown"
+				local pvp = "Unknown"
+				local was = "Unknown"
+				local wui = "Unknown"
+				local nms = "Unknown"
+				local pt = "Unknown"
+				local pta = "Unknown"
+				local vsp = "None"
+				if perms >= PermAdmin then
+					local playerdata = getPlayerdata(nil, true, one)
+					sid = playerdata["steam_id"]
+					name = playerdata["name"]
+					local warns = playerdata["warns"]
+					if playerdata["as"] ~= nil then
+						was = tostring(playerdata["as"])
 					end
-					if playerdata["ptachivment"] ~= nil then
-						pta = tostring(playerdata["ptachivment"])
+					if playerdata["pvp"] ~= nil then
+						pvp = tostring(playerdata["pvp"])
 					end
+					if playerdata["ui"] ~= nil then
+						wui = tostring(playerdata["ui"])
+					end
+					if playerdata["nicked"] ~= nil then
+						nms = tostring(playerdata["nicked"])
+					end
+					if enableplaytime then
+						if playerdata["pt"] ~= nil then
+							pt = formattime(playerdata["pt"])
+						end
+						if playerdata["ptachivment"] ~= nil then
+							pta = tostring(playerdata["ptachivment"])
+						end
+					end
+					local vehicles = getPlayerVehicleGroups(one)
+					for _, GroupData in pairs(vehicles) do
+						if vsp == "None" then
+							vsp = GroupData["group_id"]
+						else
+							vsp = vsp..", "..GroupData["group_id"]
+						end
+					end
+					sendannounce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nNicked: "..nms.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns.."\nPlaytime: "..pt.."\nPlaytimeachivment: "..pta.."\nVehicles: "..vsp, user_peer_id)
 				end
-				sendannounce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nNicked: "..nms.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns.."\nPlaytime: "..pt.."\nPlaytimeachivment: "..pta, user_peer_id)
 			end
 		else
 			local pid = ""
@@ -1437,7 +1467,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?test") then
 		commandfound = true
 		if perms >= PermOwner then
-			getPlaytime(tostring(user_peer_id))
+			getPlaytime(getsteam_id(user_peer_id))
 		end
 	end
 
@@ -1723,11 +1753,35 @@ function updateUI()
 					local peer_id=X.id
 					local pvp = tostring(getPlayerdata("pvp", true, X.id)) or "unknown"
 					local pas = tostring(getPlayerdata("as", true, X.id)) or "unknown"
+
+					-- get the players vehicles
+					local vehicles = getPlayerVehicleGroups(X.id)
+					local vehiclestring = ""
+					local vspawned = 0
+					for _, GroupData in pairs(vehicles) do
+						if vspawned ~= 2 then
+							vspawned = vspawned + 1
+							if vehiclestring == "" then
+								vehiclestring = GroupData["group_id"]
+							else
+								vehiclestring = vehiclestring.."\n"..GroupData["group_id"]
+							end
+						end
+					end
+					if vspawned == 0 then
+						vehiclestring = "\n"
+					else
+						for i=1, 2-vspawned do
+							vehiclestring = vehiclestring.."\n"
+						end
+					end
+					
+					
 					if enableplaytime then
 						local pt = formattime(getPlayerdata("pt", true, X.id)) or "unknown"
-						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Playtime=-\n"..pt.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.75)
+						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-\n"..ut.."\n-=Playtime=-\n"..pt.."\n-=Vehicles=-\n"..vehiclestring.."\n-=Antisteal=-\n"..pas.."\n-=PVP=-\n"..pvp.."\n-=TPS=-\n"..TPS, -0.905, 0.7)
 					else
-						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
+						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-\n"..ut.."\n-=Antisteal=-\n"..pas.."\n-=PVP=-\n"..pvp.."\n-=TPS=-\n"..TPS, -0.905, 0.8)
 					end
 				end
 			end
