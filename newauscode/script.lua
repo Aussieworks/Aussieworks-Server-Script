@@ -615,7 +615,7 @@ end
 --endregion
 
 --toggle players pvp
-function togglePVP(peer_id, state)
+function togglePVP(peer_id, state, silently)
 	if forcepvp then
 		return
 	end
@@ -630,22 +630,30 @@ function togglePVP(peer_id, state)
 		end
 		if tostring(state) == "true" then
 			setPlayerdata("pvp", true, peer_id, true)
-			server.notify(peer_id, "[Server]", "PVP enabled", 5)
-			sendannounce("[Server]", peer_id.." | "..name.." has enabled their PVP")
+			if not silently then
+				server.notify(peer_id, "[Server]", "PVP enabled", 5)
+				sendannounce("[Server]", peer_id.." | "..name.." has enabled their PVP")
+			end
 		elseif tostring(state) == "false" then
 			setPlayerdata("pvp", true, peer_id, false)
-			server.notify(peer_id, "[Server]", "PVP disabled", 6)
-			sendannounce("[Server]", peer_id.." | "..name.." has disabled their PVP")
+			if not silently then
+				server.notify(peer_id, "[Server]", "PVP disabled", 6)
+				sendannounce("[Server]", peer_id.." | "..name.." has disabled their PVP")
+			end
 		end
 	else
 		if pvp == true then
 			setPlayerdata("pvp", true, peer_id, false)
-			server.notify(peer_id, "[Server]", "PVP disabled", 6)
-			sendannounce("[Server]", peer_id.." | "..name.." has disabled their PVP")
+			if not silently then
+				server.notify(peer_id, "[Server]", "PVP disabled", 6)
+				sendannounce("[Server]", peer_id.." | "..name.." has disabled their PVP")
+			end
 		elseif pvp == false then
 			setPlayerdata("pvp", true, peer_id, true)
-			server.notify(peer_id, "[Server]", "PVP enabled", 5)
-			sendannounce("[Server]", peer_id.." | "..name.." has enabled their PVP")
+			if not silently then
+				server.notify(peer_id, "[Server]", "PVP enabled", 5)
+				sendannounce("[Server]", peer_id.." | "..name.." has enabled their PVP")
+			end
 		end
 	end
 
@@ -1200,7 +1208,8 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			commandfound = true
 			if one ~= nil and server.getPlayerName(one) ~= "" then
 				if two == nil or two:lower() == "true" or two:lower() == "false" then
-					togglePVP(one,two)
+					togglePVP(one,two,true)
+					server.notify(user_peer_id, "[Server]", "Players PVP has been set to: "..tostring(getPlayerdata("pvp",true,one)), 5)
 				else
 					server.notify(user_peer_id, "[Server]", "Invalid value for state. Use true, false, or leave it empty.", 6)
 				end
