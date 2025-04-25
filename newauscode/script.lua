@@ -699,28 +699,41 @@ function toggleAS(peer_id, state)
 end
 
 -- toggle players ui
-function toggleUI(peer_id, state)
+function toggleUI(peer_id, state, silently)
+	if silently == nil then
+		silently = false
+	end
 	local ui = getPlayerdata("ui", true, peer_id)
 
 	if state ~= nil then
-		state = state:lower()
+		state = tostring(state):lower()
 		if tostring(state) == tostring(ui) then
 			return
 		end
 		if tostring(state) == "true" then
 			setPlayerdata("ui", true, peer_id, true)
-			server.notify(peer_id, "[Server]", "UI enabled", 5)
+			if not silently then
+				server.notify(peer_id, "[Server]", "UI enabled", 5)
+			end
 		elseif tostring(state) == "false" then
 			setPlayerdata("ui", true, peer_id, false)
-			server.notify(peer_id, "[Server]", "UI disabled", 6)
+			server.removePopup(peer_id, 2)
+			if not silently then
+				server.notify(peer_id, "[Server]", "UI disabled", 6)
+			end
 		end
 	else
 		if ui == true then
 			setPlayerdata("ui", true, peer_id, false)
-			server.notify(peer_id, "[Server]", "UI disabled", 6)
+			server.removePopup(peer_id, 2)
+			if not silently then
+				server.notify(peer_id, "[Server]", "UI disabled", 6)
+			end
 		elseif ui == false then
 			setPlayerdata("ui", true, peer_id, true)
-			server.notify(peer_id, "[Server]", "UI enabled", 5)
+			if not silently then
+				server.notify(peer_id, "[Server]", "UI enabled", 5)
+			end
 		end
 	end
 end
@@ -963,14 +976,13 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			server.addAuth(user_peer_id)
 			server.notify(user_peer_id, "[Server]", "You have been authed", 5)
 			server.removePopup(user_peer_id, 3)
-			setPlayerdata("ui", true, user_peer_id, false)
-			server.removePopup(user_peer_id, 2)
+			toggleUI(user_peer_id, false, true)
 			loop(3,
 				function(id)
 					if enablebackend then
 						getPlaytime(getsteam_id(user_peer_id))
 					end
-					setPlayerdata("ui", true, user_peer_id, true)
+					toggleUI(user_peer_id, true, true)
 					removeLoop(id)
 				end
 			)
@@ -979,14 +991,13 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			server.notify(user_peer_id, "[Server]", "You are already authed", 6)
 			server.removePopup(user_peer_id, 3)
 			if user_peer_id == 0 and getPlayerdata("steam_id", true, user_peer_id) ~= 0 then
-				setPlayerdata("ui", true, user_peer_id, false)
-				server.removePopup(user_peer_id, 2)
+				toggleUI(user_peer_id, false, true)
 				loop(3,
 					function(id)
 						if enablebackend then
 							getPlaytime(getsteam_id(user_peer_id))
 						end
-						setPlayerdata("ui", true, user_peer_id, true)
+						toggleUI(user_peer_id, true, true)
 						removeLoop(id)
 					end
 				)
