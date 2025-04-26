@@ -23,6 +23,7 @@ disabledcommands = {} -- list of commands that are disabled
 playerlist = {}
 -- settings
 discordlink = "discord.aussieworks.xyz"
+rules = ""
 maxMessages = 250
 playermaxvehicles = 1
 unlockislands = true
@@ -45,15 +46,19 @@ limitingbypass = false
 limitingbypassperm = PermOwner
 warnactionthreashold = 3
 warnaction = "kick" -- can be "kick" or "ban"
-allownicknames = false
+allownicknames = true
 permtonick = PermAdmin
 enableplaytime = true
-enablebackend = false -- requires backend to be running. and also requires the backend to be from AusCode, otherwise it may not work. currently still in development and not on the repo.
-backendport = 8000
+enablebackend = false -- requires backend to be running. and also requires the backend to be from AusCode, otherwise it may not work
+backendport = 8000 -- port that the backend is running on
+heartbeatfrequency = 5
+servernumber = 1 -- this corresponds to what number your server is. for example 1 would be server1. this only matters if you are using the backend and the server control scripts.
 playtimetodbfrequency = 60 -- in seconds
 playtimeupdatefrequency = 10 -- in seconds
 testingwarning = false -- used to tell players that the scripts are in development and their might be frequent script reloads
 tipFrequency = 180  -- in seconds
+tips = true -- if true then tips will be shown in chat
+tipmessages = {"use ?help to get a list of all the available commands","use ?auth if you dont have permision to use a workbench","we have a discord server. dont forget to join. "..discordlink.." or run the command ?disc","use ?as or ?antisteal to toggle your personal antisteal","use ?pvp to toggle your personal pvp","use ?ui to toggle your personal ui"} -- list of tips that will be shown in chat
 debug_enabled = false -- currently not fully implemented
 -- dont touch
 tiptimer = 0
@@ -63,7 +68,7 @@ TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
 tickDuration = 1000
-scriptversion = "v1.6.5"
+scriptversion = "v1.7.0"
 
 
 
@@ -74,7 +79,7 @@ function playerint(steam_id, peer_id)
 	pn = friendlystring(pn)
 	if playerdatasave then
 		if g_savedata["playerdata"][tostring(steam_id)] == nil then
-			g_savedata["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=tostring(peer_id), name=tostring(pn), as=true, pvp=false, ui=false, warns=0, nicked=false, lastseat={}, pt=0, ptlu=server.getTimeMillisec(), ptachivment=0}
+			g_savedata["playerdata"][tostring(steam_id)] = {steam_id=tostring(steam_id), peer_id=tostring(peer_id), name=tostring(pn), as=true, pvp=false, ui=false, warns=0, nicked=false, lastseat={}, pt=0, ptlu=server.getTimeMillisec(), ptachivment=0, groups=getPlayerVehicleGroups(peer_id)}
 			for _, sid in pairs(adminlist) do
 				if tostring(sid[1]) == tostring(steam_id) then
 					g_savedata["playerdata"][tostring(steam_id)]["perms"] = sid[2]
@@ -105,6 +110,7 @@ function playerint(steam_id, peer_id)
 			g_savedata["playerdata"][tostring(steam_id)]["pt"] = g_savedata["playerdata"][tostring(steam_id)]["pt"] or 0
 			g_savedata["playerdata"][tostring(steam_id)]["ptlu"] = server.getTimeMillisec()
 			g_savedata["playerdata"][tostring(steam_id)]["ptachivment"] = g_savedata["playerdata"][tostring(steam_id)]["ptachivment"] or 0
+			g_savedata["playerdata"][tostring(steam_id)]["groups"] = getPlayerVehicleGroups(peer_id)
 			for _, sid in pairs(adminlist) do
 				if tostring(sid[1]) == tostring(steam_id) then
 					g_savedata["playerdata"][tostring(steam_id)]["perms"] = sid[2]
@@ -217,32 +223,31 @@ function onPlayerJoin(steam_id, name, peer_id, admin, auth)
 	sendannounce("[Server]", peer_id.." | "..name.." joined the game")
 	server.setPopupScreen(peer_id, 3, "auth", true, "You are not authed. type ?auth in chat to get authed", 0, 0)
 	if testingwarning then
-		server.announce("[AusCode]", "Script is being worked on and there will be many script reloads", peer_id)
-		table.insert(chatMessages, {full_message="Script is being worked on and there will be many script reloads",name="[AusCode]",topid=peer_id})
+		sendannounce("[AusCode]", "Script is being worked on and there will be many script reloads", peer_id)
 	end
 	server.removeAuth(peer_id)
 	sendChat = true
 	playerint(steam_id, peer_id)
+	sendJoin(steam_id)
 end
 
 -- player leave
 function onPlayerLeave(steam_id, name, peer_id, admin, auth)
 	sendannounce("[Server]", peer_id.." | "..name.." left the game")
 	local ownersteamid = getsteam_id(peer_id)
-	local vehiclespawned = false
 	for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 		if GroupData["ownersteamid"] == ownersteamid then
-			vehiclespawned = true
 			server.despawnVehicleGroup(group_id, true)
 		end
 	end
+	setPlayerdata("groups", true, peer_id, {})
 	for i, player in pairs(playerlist) do
 		if player.id == peer_id then
 			if enableplaytime then
 				updatePlaytime()
 			end
 			if enablebackend then
-				updatePlaytimeToDB(steam_id)
+				sendPlaytime(steam_id)
 			end
 			table.remove(playerlist, i)
 		end
@@ -354,18 +359,21 @@ function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
 			g_savedata["usercreations"][tostring(group_id)]["Vehicleparts"][tostring(vehicle_id)] = 1
 			local ownersteamid = getsteam_id(peer_id)
 			local vehiclespawned = 0
-			local despawned = false
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 				if GroupData["ownersteamid"] == ownersteamid then
-					vehiclespawned = vehiclespawned + 1
+					local groupdata, gexists = server.getVehicleGroup(group_id)
+					if gexists then
+						vehiclespawned = vehiclespawned + 1
+					else
+						g_savedata["usercreations"][tostring(group_id)] = nil
+					end
 					if vehiclespawned > playermaxvehicles then
-						despawned = true
 						server.despawnVehicleGroup(group_id, true)
 						server.notify(peer_id, "[Server]", "You can only have "..playermaxvehicles.." vehicle spawned at a time", 6)
+
 					end
 				end
 			end
-
 		end
 	end
 end
@@ -387,6 +395,7 @@ function onGroupSpawn(group_id, peer_id, x, y, z, group_cost)
 						else
 							sendannounce("[Server]", peer_id.." | "..name.." spawned vehicle group: "..group_id.." Cost: $"..string.format("%.0f",group_cost))
 						end
+						setPlayerdata("groups", true, peer_id, getPlayerVehicleGroups(peer_id))
 						removeLoop(id)
 					end
 				end
@@ -417,7 +426,7 @@ function checklimmiting(group_id, peer_id)
 			if debug_enabled then
 				sendannounce("[AusCode]", voxel_count)
 			end
-		end	
+		end
 		if subbodylimiting then
 			local subbodys = server.getVehicleGroup(group_id)
 			if #subbodys > maxsubbodys then
@@ -473,7 +482,25 @@ function onGroupDespawn(group_id, peer_id)
 	local nm = m + g_savedata["usercreations"][tostring(group_id)]["cost"]
 	server.setCurrency(nm, 0)
 	g_savedata["usercreations"][tostring(group_id)] = nil
+	setPlayerdata("groups", true, peer_id, getPlayerVehicleGroups(peer_id))
 end
+
+-- get a players vehicle groups
+function getPlayerVehicleGroups(peer_id)
+	local groups = {}
+	local ownersteamid = getsteam_id(peer_id)
+	for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+		if GroupData["ownersteamid"] == ownersteamid then
+			local groupdata, gexists = server.getVehicleGroup(group_id)
+			if gexists then
+				GroupData["group_id"] = group_id
+				table.insert(groups, GroupData)
+			end
+		end
+	end
+	return groups
+end
+
 
 -- count stuffs
 function countitems(list)
@@ -523,30 +550,201 @@ function friendlystring(String)
 	return string.gsub(String, "[<]", "")
 end
 
--- sends playtime to backend
-if enablebackend then
-	---@param steam_id string
-	function updatePlaytimeToDB(steam_id)
-		server.httpGet(backendport, "/data_post?name="..tostring(steam_id).."&value="..getPlayerdata("pt", false, steam_id))
+-- Backend things
+---@param steam_id string
+function sendPlaytime(steam_id)
+	if not enablebackend then
+		return
 	end
-	function getPlaytimeFromDB(steam_id)
-		server.httpGet(backendport, "/data_get?name="..tostring(steam_id))
+	server.httpGet(backendport, "/player/playtime/post?steam_id="..tostring(steam_id).."&playtime="..getPlayerdata("pt", false, steam_id))
+end
+function getPlaytime(steam_id)
+	if not enablebackend then
+		return
 	end
-	function httpReply(port, request, reply)
-		if startsWith(request, "/data_get") then
-			request = tostring(request)
-			setPlayerdata("pt", false, request:gsub("^/data_get%?name=%s*", ""), reply)
-			if debug_enabled then
-				sendannounce("[Debug]", "Playtime for "..request:gsub("^/data_get%?name=%s*", "").." is "..reply)
-			end
+	server.httpGet(backendport, "/player/playtime/get?steam_id="..tostring(steam_id))
+end
+function heartbeat()
+	if not enablebackend then
+		return
+	end
+	server.httpGet(backendport, "/heartbeat/"..tostring(servernumber).."?tps="..tostring(math.floor(TPS)).."&players="..tostring(#playerlist))
+end
+function sendJoin(steam_id)
+	if not enablebackend then
+		return
+	end
+	server.httpGet(backendport, "/player/join?steam_id="..tostring(steam_id))
+end
+function sendWarn(steam_id)
+	if not enablebackend then
+		return
+	end
+	server.httpGet(backendport, "/player/warn?steam_id="..tostring(steam_id))
+end
+function httpReply(port, request, reply)
+	if startsWith(request, "/player/playtime/get") then
+		request = tostring(request)
+		local sid = request:gsub("^/player/playtime/get%?steam_id=%s*", "")
+		setPlayerdata("pt", false, sid, reply)
+		local playtime = tonumber(reply) or 0
+		if playtime >= 36000000 then
+			setPlayerdata("ptachivment", false, sid, 6)
+		elseif playtime >= 28800000 then
+			setPlayerdata("ptachivment", false, sid, 5)
+		elseif playtime >= 14400000 then
+			setPlayerdata("ptachivment", false, sid, 4)
+		elseif playtime >= 7200000 then
+			setPlayerdata("ptachivment", false, sid, 3)
+		elseif playtime >= 3600000 then
+			setPlayerdata("ptachivment", false, sid, 2)
+		elseif playtime >= 1800000 then
+			setPlayerdata("ptachivment", false, sid, 1)
+		end
+		if debug_enabled then
+			sendannounce("[Debug]", "Playtime for "..sid.." is "..reply)
 		end
 	end
 end
+--endregion
+
 -- check if starts with
 function startsWith(str, value)
 	return str:sub(1, #value) == value
 end
 --endregion
+
+--toggle players pvp
+function togglePVP(peer_id, state, silently)
+	if forcepvp then
+		return
+	end
+
+	local pvp = getPlayerdata("pvp", true, peer_id)
+	local name = getPlayerdata("name", true, peer_id)
+
+	if state ~= nil then
+		state = state:lower()
+		if tostring(state) == tostring(pvp) then
+			return
+		end
+		if tostring(state) == "true" then
+			setPlayerdata("pvp", true, peer_id, true)
+			if not silently then
+				server.notify(peer_id, "[Server]", "PVP enabled", 5)
+				sendannounce("[Server]", peer_id.." | "..name.." has enabled their PVP")
+			end
+		elseif tostring(state) == "false" then
+			setPlayerdata("pvp", true, peer_id, false)
+			if not silently then
+				server.notify(peer_id, "[Server]", "PVP disabled", 6)
+				sendannounce("[Server]", peer_id.." | "..name.." has disabled their PVP")
+			end
+		end
+	else
+		if pvp == true then
+			setPlayerdata("pvp", true, peer_id, false)
+			if not silently then
+				server.notify(peer_id, "[Server]", "PVP disabled", 6)
+				sendannounce("[Server]", peer_id.." | "..name.." has disabled their PVP")
+			end
+		elseif pvp == false then
+			setPlayerdata("pvp", true, peer_id, true)
+			if not silently then
+				server.notify(peer_id, "[Server]", "PVP enabled", 5)
+				sendannounce("[Server]", peer_id.." | "..name.." has enabled their PVP")
+			end
+		end
+	end
+
+	-- Update vehicle tooltips and invulnerability
+	local ownersteamid = getsteam_id(peer_id)
+	for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+		if GroupData["ownersteamid"] == ownersteamid then
+			for vehicle_id, _ in pairs(GroupData["Vehicleparts"]) do
+				server.setVehicleTooltip(vehicle_id, "Owner: "..peer_id.." | "..name.."\nPVP: "..tostring(getPlayerdata("pvp", true, peer_id)).." | Group ID: "..group_id)
+				server.setVehicleInvulnerable(vehicle_id, not getPlayerdata("pvp", true, peer_id))
+			end
+		end
+	end
+end
+
+-- toggle players anti-steal
+function toggleAS(peer_id, state)
+	local as = getPlayerdata("as", true, peer_id)
+
+	if state ~= nil then
+		state = state:lower()
+		if tostring(state) == tostring(as) then
+			return
+		end
+		if tostring(state) == "true" then
+			setPlayerdata("as", true, peer_id, true)
+			server.notify(peer_id, "[Server]", "Anti-steal enabled", 5)
+		elseif tostring(state) == "false" then
+			setPlayerdata("as", true, peer_id, false)
+			server.notify(peer_id, "[Server]", "Anti-steal disabled", 6)
+		end
+	else
+		if as == true then
+			setPlayerdata("as", true, peer_id, false)
+			server.notify(peer_id, "[Server]", "Anti-steal disabled", 6)
+		elseif as == false then
+			setPlayerdata("as", true, peer_id, true)
+			server.notify(peer_id, "[Server]", "Anti-steal enabled", 5)
+		end
+	end
+
+	-- Update vehicle editability
+	local ownersteamid = getsteam_id(peer_id)
+	for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+		if GroupData["ownersteamid"] == ownersteamid then
+			for vehicle_id, _ in pairs(GroupData["Vehicleparts"]) do
+				server.setVehicleEditable(vehicle_id, not getPlayerdata("as", true, peer_id))
+			end
+		end
+	end
+end
+
+-- toggle players ui
+function toggleUI(peer_id, state, silently)
+	if silently == nil then
+		silently = false
+	end
+	local ui = getPlayerdata("ui", true, peer_id)
+
+	if state ~= nil then
+		state = tostring(state):lower()
+		if tostring(state) == tostring(ui) then
+			return
+		end
+		if tostring(state) == "true" then
+			setPlayerdata("ui", true, peer_id, true)
+			if not silently then
+				server.notify(peer_id, "[Server]", "UI enabled", 5)
+			end
+		elseif tostring(state) == "false" then
+			setPlayerdata("ui", true, peer_id, false)
+			server.removePopup(peer_id, 2)
+			if not silently then
+				server.notify(peer_id, "[Server]", "UI disabled", 6)
+			end
+		end
+	else
+		if ui == true then
+			setPlayerdata("ui", true, peer_id, false)
+			server.removePopup(peer_id, 2)
+			if not silently then
+				server.notify(peer_id, "[Server]", "UI disabled", 6)
+			end
+		elseif ui == false then
+			setPlayerdata("ui", true, peer_id, true)
+			if not silently then
+				server.notify(peer_id, "[Server]", "UI enabled", 5)
+			end
+		end
+	end
+end
 
 -- Commands
 function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command, one, two, three, four, five)
@@ -571,7 +769,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		if not customchat then
 			name = playername
 		end
-		
+
 		local hidecommand = false
 		for c, commanddata in pairs(hiddencommands) do
 			if command:lower() == commanddata then
@@ -601,40 +799,53 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?pi") then
 		commandfound = true
 		if one ~= nil then
-			local sid = "Unknown"
-			local name = "Unknown"
-			local pvp = "Unknown"
-			local was = "Unknown"
-			local wui = "Unknown"
-			local nms = "Unknown"
-			local pt = "Unknown"
-			local pta = "Unknown"
-			if perms >= PermAdmin then
-				local playerdata = getPlayerdata(nil, true, one)
-				sid = playerdata["steam_id"]
-				name = playerdata["name"]
-				local warns = playerdata["warns"]
-				if playerdata["as"] ~= nil then
-					was = tostring(playerdata["as"])
-				end
-				if playerdata["pvp"] ~= nil then
-					pvp = tostring(playerdata["pvp"])
-				end
-				if playerdata["ui"] ~= nil then
-					wui = tostring(playerdata["ui"])
-				end
-				if playerdata["nicked"] ~= nil then
-					nms = tostring(playerdata["nicked"])
-				end
-				if enableplaytime then
-					if playerdata["pt"] ~= nil then
-						pt = formattime(playerdata["pt"])
+			if server.getPlayerName(one) == "" then
+				server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
+			else
+				local sid = "Unknown"
+				local name = "Unknown"
+				local pvp = "Unknown"
+				local was = "Unknown"
+				local wui = "Unknown"
+				local nms = "Unknown"
+				local pt = "Unknown"
+				local pta = "Unknown"
+				local vsp = "None"
+				if perms >= PermAdmin then
+					local playerdata = getPlayerdata(nil, true, one)
+					sid = playerdata["steam_id"]
+					name = playerdata["name"]
+					local warns = playerdata["warns"]
+					if playerdata["as"] ~= nil then
+						was = tostring(playerdata["as"])
 					end
-					if playerdata["ptachivment"] ~= nil then
-						pta = tostring(playerdata["ptachivment"])
+					if playerdata["pvp"] ~= nil then
+						pvp = tostring(playerdata["pvp"])
 					end
+					if playerdata["ui"] ~= nil then
+						wui = tostring(playerdata["ui"])
+					end
+					if playerdata["nicked"] ~= nil then
+						nms = tostring(playerdata["nicked"])
+					end
+					if enableplaytime then
+						if playerdata["pt"] ~= nil then
+							pt = formattime(playerdata["pt"])
+						end
+						if playerdata["ptachivment"] ~= nil then
+							pta = tostring(playerdata["ptachivment"])
+						end
+					end
+					local vehicles = getPlayerVehicleGroups(one)
+					for _, GroupData in pairs(vehicles) do
+						if vsp == "None" then
+							vsp = GroupData["group_id"]
+						else
+							vsp = vsp..", "..GroupData["group_id"]
+						end
+					end
+					sendannounce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nNicked: "..nms.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns.."\nPlaytime: "..pt.."\nPlaytimeachivment: "..pta.."\nVehicles: "..vsp, user_peer_id)
 				end
-				sendannounce("[Server]", "Peer id: "..tostring(one).."\nName: "..name.."\nNicked: "..nms.."\nSteam id: "..tostring(sid).."\nAntisteal: "..was.."\nPVP: "..pvp.."\nUI: "..wui.."\nWarns: "..warns.."\nPlaytime: "..pt.."\nPlaytimeachivment: "..pta, user_peer_id)
 			end
 		else
 			local pid = ""
@@ -662,15 +873,27 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		commandfound = true
 		if perms >= PermMod then
 			if two == nil then
-				local m1 = server.getPlayerPos(one)
-				server.setPlayerPos(user_peer_id, m1)
+				if server.getPlayerName(one) ~= "" then
+					local m1 = server.getPlayerPos(one)
+					server.setPlayerPos(user_peer_id, m1)
+				else
+					server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
+				end
 			elseif two ~= nil then
-				local m1 = server.getPlayerPos(two)
-				server.setPlayerPos(one, m1)
+				if server.getPlayerName(one) ~= "" and server.getPlayerName(two) ~= "" then
+					local m1 = server.getPlayerPos(two)
+					server.setPlayerPos(one, m1)
+				else
+					server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
+				end
 			end
 		else
-			local m1 = server.getPlayerPos(one)
-			server.setPlayerPos(user_peer_id, m1)
+			if server.getPlayerName(one) ~= "" then
+				local m1 = server.getPlayerPos(one)
+				server.setPlayerPos(user_peer_id, m1)
+			else
+				server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
+			end
 		end
 	end
 
@@ -685,8 +908,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 					local vmatrix, pworked = server.getVehiclePos(parts[1], 0, 0, 0)
 					if pworked then
 						local x,y,z = matrix.position(vmatrix)
-						server.setPlayerPos(user_peer_id, matrix.translation(x,y+10,z))
-						cworked = true
+						cworked = server.setPlayerPos(user_peer_id, matrix.translation(x,y+10,z))
 					end
 				end
 			end
@@ -735,17 +957,21 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		elseif two ~= nil then
 			if perms >= PermAdmin then
 				commandfound = true
-				local ppos = server.getPlayerPos(two)
-				local x,y,z = matrix.position(ppos)
-				local dest = matrix.translation(x,y+2,z)
-				worked = server.setGroupPos(one, dest)
-				if one == nil then
-					server.notify(user_peer_id, "[Server]", "You have to input the vehicles group id of the vehicle you want to go to you", 6)
-				end
-				if worked == true then
-					server.notify(user_peer_id, "[Server]", "Vehicle group: "..one.." has been teleported to "..two, 5)
-				elseif worked == false then
-					server.notify(user_peer_id, "[Server]", "Vehicle group: "..one.." does not exist", 6)
+				if server.getPlayerName(two) ~= "" then
+					local ppos = server.getPlayerPos(two)
+					local x,y,z = matrix.position(ppos)
+					local dest = matrix.translation(x,y+2,z)
+					worked = server.setGroupPos(one, dest)
+					if one == nil then
+						server.notify(user_peer_id, "[Server]", "You have to input the vehicles group id of the vehicle you want to go to you", 6)
+					end
+					if worked == true then
+						server.notify(user_peer_id, "[Server]", "Vehicle group: "..one.." has been teleported to "..two, 5)
+					elseif worked == false then
+						server.notify(user_peer_id, "[Server]", "Vehicle group: "..one.." does not exist", 6)
+					end
+				else
+					server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
 				end
 			end
 		end
@@ -758,14 +984,13 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			server.addAuth(user_peer_id)
 			server.notify(user_peer_id, "[Server]", "You have been authed", 5)
 			server.removePopup(user_peer_id, 3)
-			setPlayerdata("ui", true, user_peer_id, false)
-			server.removePopup(user_peer_id, 2)
+			toggleUI(user_peer_id, false, true)
 			loop(3,
 				function(id)
 					if enablebackend then
-						getPlaytimeFromDB(getsteam_id(user_peer_id))
+						getPlaytime(getsteam_id(user_peer_id))
 					end
-					setPlayerdata("ui", true, user_peer_id, true)
+					toggleUI(user_peer_id, true, true)
 					removeLoop(id)
 				end
 			)
@@ -774,14 +999,13 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			server.notify(user_peer_id, "[Server]", "You are already authed", 6)
 			server.removePopup(user_peer_id, 3)
 			if user_peer_id == 0 and getPlayerdata("steam_id", true, user_peer_id) ~= 0 then
-				setPlayerdata("ui", true, user_peer_id, false)
-				server.removePopup(user_peer_id, 2)
+				toggleUI(user_peer_id, false, true)
 				loop(3,
 					function(id)
 						if enablebackend then
-							getPlaytimeFromDB(getsteam_id(user_peer_id))
+							getPlaytime(getsteam_id(user_peer_id))
 						end
-						setPlayerdata("ui", true, user_peer_id, true)
+						toggleUI(user_peer_id, true, true)
 						removeLoop(id)
 					end
 				)
@@ -793,29 +1017,34 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?warn") then
 		commandfound = true
 		if perms >= PermMod then
-			server.removeAuth(one)
-			local reason = full_message:gsub("^%?warn%s*", ""):gsub("^%?", ""):gsub(one, "") -- removes ?warn and varible one from full_message
-			server.notify(one, "[Warn]", "You have been warned".."\nReason: "..reason, 6)
-			local ownersteamid = getsteam_id(one)
-			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-				if GroupData["ownersteamid"] == ownersteamid then
-					server.despawnVehicleGroup(group_id, true)
+			if server.getPlayerName(one) ~= "" then
+				server.removeAuth(one)
+				local reason = full_message:gsub("^%?warn%s*", ""):gsub("^%?", ""):gsub(one, "") -- removes ?warn and varible one from full_message
+				server.notify(one, "[Warn]", "You have been warned".."\nReason: "..reason, 6)
+				local ownersteamid = getsteam_id(one)
+				for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+					if GroupData["ownersteamid"] == ownersteamid then
+						server.despawnVehicleGroup(group_id, true)
+					end
 				end
-			end
-			local warns = tonumber(getPlayerdata("warns", true, one)) + 1
-			if warns >= warnactionthreashold then
-				setPlayerdata("warns", true, one, tostring(0))
-				if warnaction == "kick" then
-					local name = getPlayerdata("name", true, one)
-					sendannounce("[Server]", one.." | "..name.." has been kick for reaching the warning threashold")
-					server.kick(one)
-				elseif warnaction == "ban" then
-					local name = getPlayerdata("name", true, one)
-					sendannounce("[Server]", one.." | "..name.." has been banned for reaching the warning threashold")
-					server.ban(one)
+				local warns = tonumber(getPlayerdata("warns", true, one)) + 1
+				if warns >= warnactionthreashold then
+					setPlayerdata("warns", true, one, tostring(0))
+					if warnaction == "kick" then
+						local name = getPlayerdata("name", true, one)
+						sendannounce("[Server]", one.." | "..name.." has been kick for reaching the warning threashold")
+						server.kick(one)
+					elseif warnaction == "ban" then
+						local name = getPlayerdata("name", true, one)
+						sendannounce("[Server]", one.." | "..name.." has been banned for reaching the warning threashold")
+						server.ban(one)
+					end
+				elseif warns < warnactionthreashold then
+					setPlayerdata("warns", true, one, tostring(warns))
 				end
-			elseif warns < warnactionthreashold then
-				setPlayerdata("warns", true, one, tostring(warns))
+				sendWarn(getsteam_id(one))
+			else
+				server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
 			end
 		end
 	end
@@ -883,7 +1112,10 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 				if GroupData["ownersteamid"] == ownersteamid then
 					vehiclespawned = true
-					server.despawnVehicleGroup(group_id, true)
+					local vd = server.despawnVehicleGroup(group_id, true)
+					if not vd then
+						g_savedata["usercreations"][tostring(group_id)] = nil
+					end
 					server.notify(user_peer_id, "[Server]", "Your vehicle/s have been despawned", 5)
 				end
 			end
@@ -897,7 +1129,10 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				if GroupData["ownersteamid"] == ownersteamid then
 					if group_id == one then
 						vehiclespawned = true
-						server.despawnVehicleGroup(group_id, true)
+						local vd = server.despawnVehicleGroup(group_id, true)
+						if not vd then
+							g_savedata["usercreations"][tostring(group_id)] = nil
+						end
 						server.notify(user_peer_id, "[Server]", "Your vehicle/s with the group id of "..one..", has been despawned", 5)
 					end
 				end
@@ -907,22 +1142,29 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			end
 		end
 	end
-	
+
 	-- clear spesific players vehicle
 	if (command:lower() == "?pc") or (command:lower() == "?playerclear") then
 		commandfound = true
 		if perms >= PermMod then
-			local ownersteamid = getsteam_id(one)
-			local vehiclespawned = false
-			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-				if GroupData["ownersteamid"] == ownersteamid then
-					vehiclespawned = true
-					server.despawnVehicleGroup(group_id, true)
-					server.notify(user_peer_id, "[Server]", "Specified player's vehicle/s have been despawned", 5)
+			if server.getPlayerName(one) ~= "" then
+				local ownersteamid = getsteam_id(one)
+				local vehiclespawned = false
+				for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+					if GroupData["ownersteamid"] == ownersteamid then
+						vehiclespawned = true
+						local vd = server.despawnVehicleGroup(group_id, true)
+						if not vd then
+							g_savedata["usercreations"][tostring(group_id)] = nil
+						end
+						server.notify(user_peer_id, "[Server]", "Specified player's vehicle/s have been despawned", 5)
+					end
 				end
-			end
-			if vehiclespawned == false then
-				server.notify(user_peer_id, "[Server]", "Specified player dosn't have any vehicle/s to despawned", 6)
+				if vehiclespawned == false then
+					server.notify(user_peer_id, "[Server]", "Specified player dosn't have any vehicle/s to despawned", 6)
+				end
+			else
+				server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
 			end
 		end
 	end
@@ -934,7 +1176,10 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			local vehiclespawned = false
 			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
 				vehiclespawned = true
-				server.despawnVehicleGroup(group_id, true)
+				local vd = server.despawnVehicleGroup(group_id, true)
+				if not vd then
+					g_savedata["usercreations"][tostring(group_id)] = nil
+				end
 			end
 			if vehiclespawned == true then
 				server.notify(user_peer_id, "[Server]", "All vehicles have been despawned", 5)
@@ -949,91 +1194,27 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?pvp") then
 		if not forcepvp then
 			commandfound = true
-			local peer_id = user_peer_id
-			local worked = false
-			local pvp
-			local name = getPlayerdata("name", true, peer_id)
-			if getPlayerdata("pvp", true, peer_id) == true then
-				setPlayerdata("pvp", true, peer_id, false)
-				server.notify(user_peer_id, "[Server]", "PVP disabled", 6)
-				sendannounce("[Server]", peer_id.." | "..name.." Has disabled there pvp")
-				worked = true
-				pvp = "false"
-			elseif getPlayerdata("pvp", true, peer_id) == false then
-				setPlayerdata("pvp", true, peer_id, true)
-				server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
-				sendannounce("[Server]", peer_id.." | "..name.." Has enabled there pvp")
-				worked = true
-				pvp = "true"
-			end
-			if worked ~= true then
-				setPlayerdata("pvp", true, peer_id, true)
-				server.notify(user_peer_id, "[Server]", "PVP enabled", 5)
-				sendannounce("[Server]", peer_id.." | "..name.." Has enabled there pvp")
-			end
-			local ownersteamid = getsteam_id(user_peer_id)
-			local vehicle_id = nil
-			local name = getPlayerdata("name", true, peer_id)
-			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-				if GroupData["ownersteamid"] == ownersteamid then
-					for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
-						server.setVehicleTooltip(vehicle_id, "Owner: "..peer_id.." | "..name.."\nPVP: "..pvp.." | Group ID: "..group_id)
-						if getPlayerdata("pvp", true, peer_id) == true then
-							server.setVehicleInvulnerable(vehicle_id, false)
-						elseif getPlayerdata("pvp", true, peer_id) == false then
-							server.setVehicleInvulnerable(vehicle_id, true)
-						end
-					end
-				end
+			if one == nil or one:lower() == "true" or one:lower() == "false" then
+				togglePVP(user_peer_id,one)
+			else
+				server.notify(user_peer_id, "[Server]", "Invalid value for state. Use true, false, or leave it empty.", 6)
 			end
 		end
 	end
 
 	-- force pvp
 	if (command:lower() == "?forcepvp") then
-		commandfound = true
 		if perms >= PermAdmin then
-			local pvp
-			local name = getPlayerdata("name", true, one)
-			if two == nil then
-				if getPlayerdata("pvp", true, one) == true then
-					setPlayerdata("pvp", true, one, false)
-					server.notify(one, "[Server]", "PVP disabled", 6)
-					sendannounce("[Server]", one.." | "..name.." has disabled there pvp")
-					pvp = "false"
-				elseif getPlayerdata("pvp", true, one) == false then
-					setPlayerdata("pvp", true, one, true)
-					server.notify(one, "[Server]", "PVP enabled", 5)
-					sendannounce("[Server]", one.." | "..name.." has enabled there pvp")
-					pvp = "true"
+			commandfound = true
+			if one ~= nil and server.getPlayerName(one) ~= "" then
+				if two == nil or two:lower() == "true" or two:lower() == "false" then
+					togglePVP(one,two,true)
+					server.notify(user_peer_id, "[Server]", "Players PVP has been set to: "..tostring(getPlayerdata("pvp",true,one)), 5)
+				else
+					server.notify(user_peer_id, "[Server]", "Invalid value for state. Use true, false, or leave it empty.", 6)
 				end
 			else
-				if two:lower() == "true" then
-					setPlayerdata("pvp", true, one, true)
-					server.notify(one, "[Server]", "PVP enabled", 5)
-					sendannounce("[Server]", one.." | "..name.." has enabled there pvp")
-					pvp = "true"
-				elseif two:lower() == "false" then
-					setPlayerdata("pvp", true, one, false)
-					server.notify(one, "[Server]", "PVP disabled", 6)
-					sendannounce("[Server]", one.." | "..name.." has disabled there pvp")
-					pvp = "false"
-				end
-			end
-			local ownersteamid = getsteam_id(one)
-			local vehicle_id = nil
-			local name = getPlayerdata("name", true, one)
-			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-				if GroupData["ownersteamid"] == ownersteamid then
-					for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
-						server.setVehicleTooltip(vehicle_id, "Owner: "..one.." | "..name.."\nPVP: "..pvp.." | Group ID: "..group_id)
-						if getPlayerdata("pvp", true, one) == true then
-							server.setVehicleInvulnerable(vehicle_id, false)
-						elseif getPlayerdata("pvp", true, one) == false then
-							server.setVehicleInvulnerable(vehicle_id, true)
-						end
-					end
-				end
+				server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
 			end
 		end
 	end
@@ -1066,23 +1247,27 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		commandfound = true
 		if perms >= PermAdmin then
 			if one ~= nil then
-				local ownersteamid = getsteam_id(one)
-				local vehicle_id = nil
-				local worked = false
-				for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-					if GroupData["ownersteamid"] == ownersteamid then
-						for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
-							server.resetVehicleState(vehicle_id)
-							worked = true
+				if server.getPlayerName(one) ~= "" then
+					local ownersteamid = getsteam_id(one)
+					local vehicle_id = nil
+					local worked = false
+					for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+						if GroupData["ownersteamid"] == ownersteamid then
+							for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
+								server.resetVehicleState(vehicle_id)
+								worked = true
+							end
 						end
 					end
-				end
-				if worked == true then
-					local name = getPlayerdata("name", true, one)
-					server.notify(one, "[Server]", "Your vehicle/s has been repaired and restocked", 5)
-					sendannounce("[Server]", one.." | "..name.." has repaired and restocked their vehicle/s")
+					if worked == true then
+						local name = getPlayerdata("name", true, one)
+						server.notify(one, "[Server]", "Your vehicle/s has been repaired and restocked", 5)
+						sendannounce("[Server]", one.." | "..name.." has repaired and restocked their vehicle/s")
+					else
+						server.notify(one, "[Server]", "You have no vehicle/s to be repaired and restocked", 6)
+					end
 				else
-					server.notify(one, "[Server]", "You have no vehicle/s to be repaired and restocked", 6)
+					server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
 				end
 			end
 		end
@@ -1112,22 +1297,28 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?forceflip") then
 		commandfound = true
 		if perms >= PermMod then
-			local ownersteamid = getsteam_id(one)
-			local worked = false
-			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-				if GroupData["ownersteamid"] == ownersteamid then
-					for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
-						worked = true
-						VehicleMatrix = server.getVehiclePos(vehicle_id)
-						x,y,z = matrix.position(VehicleMatrix)
-						server.setVehiclePos(vehicle_id, matrix.translation(x,y+1,z))
-						server.notify(user_peer_id, "[Server]", "Unflipped vehicle/s", 5)
-						server.notify(one, "[Server]", "Unflipped vehicle/s", 5)
+			if one ~= nil then
+				if server.getPlayerName(one) ~= "" then
+					local ownersteamid = getsteam_id(one)
+					local worked = false
+					for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+						if GroupData["ownersteamid"] == ownersteamid then
+							for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
+								worked = true
+								VehicleMatrix = server.getVehiclePos(vehicle_id)
+								x,y,z = matrix.position(VehicleMatrix)
+								server.setVehiclePos(vehicle_id, matrix.translation(x,y+1,z))
+								server.notify(user_peer_id, "[Server]", "Unflipped vehicle/s", 5)
+								server.notify(one, "[Server]", "Unflipped vehicle/s", 5)
+							end
+						end
 					end
+					if not worked then
+						server.notify(user_peer_id, "[Server]", "No vehicle/s to unflipped", 6)
+					end
+				else
+					server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
 				end
-			end
-			if not worked then
-				server.notify(user_peer_id, "[Server]", "No vehicle/s to unflipped", 6)
 			end
 		end
 	end
@@ -1135,32 +1326,10 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- anti steal command
 	if (command:lower() == "?as") or (command:lower() == "?antisteal") then
 		commandfound = true
-		local worked = false
-		if getPlayerdata("as", true, user_peer_id) == true then
-			setPlayerdata("as", true, user_peer_id, false)
-			server.notify(user_peer_id, "[Server]", "Anti-steal disabled", 6)
-			worked = true
-		elseif getPlayerdata("as", true, user_peer_id) == false then
-			setPlayerdata("as", true, user_peer_id, true)
-			server.notify(user_peer_id, "[Server]", "Anti-steal enabled", 5)
-			worked = true
-		end
-		if worked ~= true then
-			setPlayerdata("as", true, user_peer_id, true)
-			server.notify(user_peer_id, "[Server]", "Anti-steal enabled", 5)
-		end
-		local ownersteamid = getsteam_id(user_peer_id)
-		local vehicle_id = nil
-		for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-			if GroupData["ownersteamid"] == ownersteamid then
-				for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
-					if getPlayerdata("as", true, user_peer_id) == true then
-						server.setVehicleEditable(vehicle_id,false)
-					elseif getPlayerdata("as", true, user_peer_id) == false then
-						server.setVehicleEditable(vehicle_id, true)
-					end
-				end
-			end
+		if one == nil or one:lower() == "true" or one:lower() == "false" then
+			toggleAS(user_peer_id,one)
+		else
+			server.notify(user_peer_id, "[Server]", "Invalid value for state. Use true, false, or leave it empty.", 6)
 		end
 	end
 
@@ -1168,47 +1337,19 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?forceas") or (command:lower() == "?forceantisteal")then
 		commandfound = true
 		if perms >= PermAdmin then
-			if two == nil then
-				if getPlayerdata("as", true, one) == true then
-					setPlayerdata("as", true, one, false)
-					server.notify(one, "[Server]", "Anti-steal disabled", 6)
-					worked = true
-				elseif getPlayerdata("as", true, one) == false then
-					setPlayerdata("as", true, one, true)
-					server.notify(one, "[Server]", "Anti-steal enabled", 5)
-					worked = true
-				end
-				if worked ~= true then
-					setPlayerdata("as", true, one, true)
-					server.notify(one, "[Server]", "Anti-steal enabled", 5)
+			if one ~= nil and server.getPlayerName(one) ~= "" then
+				if two == nil or two:lower() == "true" or two:lower() == "false" then
+					toggleAS(one,two)
+				else
+					server.notify(user_peer_id, "[Server]", "Invalid value for state. Use true, false, or leave it empty.", 6)
 				end
 			else
-				if two:lower() == "true" then
-					setPlayerdata("as", true, one, true)
-					server.notify(one, "[Server]", "Anti-steal enabled", 5)
-				elseif two:lower() == "false" then
-					setPlayerdata("as", true, one, false)
-					server.notify(one, "[Server]", "Anti-steal disabled", 6)
-				end
-			end
-			local ownersteamid = getsteam_id(one)
-			local vehicle_id = nil
-			for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-				if GroupData["ownersteamid"] == ownersteamid then
-					for vehicle_id, vehicledata in pairs(GroupData["Vehicleparts"]) do
-						if getPlayerdata("as", true, one) == true then
-							server.setVehicleEditable(vehicle_id,false)
-						elseif getPlayerdata("as", true, one) == false then
-							server.setVehicleEditable(vehicle_id, true)
-						end
-					end
-				end
+				server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
 			end
 		end
 	end
 --endregion
 
-	
 -- Misc
 	-- lists players with pvp on
 	if (command:lower() == "?pvplist") then
@@ -1216,10 +1357,10 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		sendannounce("[Server]", "-=Players with pvp on=-", user_peer_id)
 		local pid = 0
 		local name = ""
-		for _, playerdata in pairs(server.getPlayers()) do
+		for _, playerdata in pairs(playerlist) do
 			if playerdatasave then
 				if getPlayerdata("pvp", true, playerdata["id"]) then
-					local name = getPlayerdata("name", true, playerdata["id"])
+					name = getPlayerdata("name", true, playerdata["id"])
 					pid = playerdata["id"]
 					sendannounce("[Server]", pid.." | "..name, user_peer_id)
 				end
@@ -1252,13 +1393,10 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- ui command
 	if (command:lower() == "?ui") then
 		commandfound = true
-		if getPlayerdata("ui", true, user_peer_id) then
-			setPlayerdata("ui", true, user_peer_id, false)
-			server.notify(user_peer_id, "[Server]", "UI disabled", 6)
-			server.removePopup(user_peer_id, 0)
-		elseif not getPlayerdata("ui", true, user_peer_id) then
-			setPlayerdata("ui", true, user_peer_id, true)
-			server.notify(user_peer_id, "[Server]", "UI enabled", 5)
+		if one == nil or one:lower() == "true" or one:lower() == "false" then
+			toggleUI(user_peer_id,one)
+		else
+			server.notify(user_peer_id, "[Server]", "Invalid value for state. Use true, false, or leave it empty.", 6)
 		end
 	end
 
@@ -1271,9 +1409,9 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- lists all the commands
 	if (command:lower() == "?help") then
 		commandfound = true
-		sendannounce("[Server]", "-=General Commands=-".."\nFormating: [required] {optional}".."\n|?help".."\n|lists all commands".."\n|?auth".."\n|gives you auth".."\n|?c {group id}".."\n|clears all your spawned vehicles or specified\n|group".."\n|?disc".."\n|states our discord link".."\n|?ui".."\n|toggles your ui".."\n|?ver".."\n|show script version and current settings to staff".."\n|?ut".."\n|shows you the uptime of the server".."\n|?as".."\n|toggles your personal anti-steal".."\n|?pvp".."\n|toggles your pvp".."\n|?pvplist".."\n|lists all the players with pvp on".."\n|?repair".."\n|repairs all of your spawned vehicles".."\n|?tpv [group_id]".."\n|teleports you to inputed vehicle group".."\n|?nick [reset/set] {nickname}".."\n|sets nickname and removes it".."\n|?vi [group_id]".."\n|tells you info about inputed group_id".."\n|?ptlb".."\n|lists all players playtime in order", user_peer_id)
+		sendannounce("[Server]", "-=General Commands=-\nFormating: [required] {optional}\n|?help\n|lists all commands\n|?auth\n|gives you auth\n|?c {group id}\n|clears your spawned vehicles or specified group\n|?disc\n|states our discord link\n|?ui {true/false}\n|toggles your ui\n|?ver\n|show script version and current settings to staff\n|?ut\n|shows you the uptime of the server\n|?as {true/false}\n|toggles your personal antisteal\n|?pvp {true/false}\n|toggles your pvp\n|?pvplist\n|lists all the players with pvp enabled\n|?repair\n|repairs all of your spawned vehicles\n|?tpv [group_id]\n|teleports you to vehicle group\n|?tvp [group_id] {peer_id}\n|teleports vehicle group to you or another player\n|?tpp [peer_id] {peer_id}\n|teleports you to a player or a player to a player\n|?nick [reset/set] {nickname}\n|sets nickname and removes it\n|?vi [group_id]\n|tells you info about inputed group_id\n|?ptlb\n|lists all players playtime in order\n|?rules\n|displays the server rules\n|?msg [peer_id] [message]\n|sends a private message to another player\n|?flip\n|flips your vehicles\n|?die\n|kills your character to respawn", user_peer_id)
 		if perms >= PermMod then
-			sendannounce("[Server]", "-=Admin Commands=-".."\nFormating: [required] {optional}".."\n|?warn [peer_id] {reason}".."\n|warns selected player".."\n|?ca".."\n|clears all vehicles".."\n|?kick [peer id]".."\n|kicks player with inputed id".."\n|?ban [peer id]".."\n|bans player with inputed id".."\n|?pi {peer id}".."\n|lists players, if inputed tells about player".."\n|?pc [peer id]".."\n|clears vehicles of inputed players ids".."\n|?forceas [peer_id] {true/false}".."\n|toggles as for inputed peer id".."\n|?forcepvp [peer_id] {true/false}".."\n|toggles pvp for inputed peer id".."\n|?clearchat".."\n|clears chat", user_peer_id)
+			sendannounce("[Server]", "-=Admin Commands=-\nFormating: [required] {optional}\n|?warn [peer_id] {reason}\n|warns selected player\n|?ca\n|clears all vehicles\n|?kick [peer id]\n|kicks player with inputed id\n|?pi {peer id}\n|lists players, if inputed tells about player\n|?pc [peer id]\n|clears vehicles of inputed players ids\n|?forceas [peer_id] {true/false}\n|forces antisteal state for inputed peer id\n|?forcepvp [peer_id] {true/false}\n|forces pvp state for inputed peer id\n|?clearchat\n|clears chat\n|?forceflip [peer_id]\n|flips vehicles of inputed peer id\n|?forcerepair [peer_id]\n|repairs vehicles of inputed peer id\n|?setmoney [amount]\n|sets the server's money\n|?w [fog] [rain] [wind]\n|sets weather conditions\n|?printchat\n|prints chat messages\n|?explodeplayer [peer_id] {power}\n|explodes the player with inputed peer id\n|?explode [group_id] {power}\n|explodes the vehicle group with inputed id", user_peer_id)
 		end
 	end
 
@@ -1286,8 +1424,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 				sendannounce("[Server]", "Weather has been set to".."\nFog: "..one.."\nRain: "..two.."\nWind: "..three)
 			elseif one == "reset" then
 				server.setWeather(0, 0, 0)
-				server.announce("[Server]", "Weather has been reset")
-				table.insert(chatMessages, {full_message="Weather has been reset",name="[Server]"})
+				sendannounce("[Server]", "Weather has been reset")
 			end
 		end
 	end
@@ -1356,11 +1493,15 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?msg") then
 		commandfound = true
 		if one ~= nil then
-			local message = full_message:gsub("^%?msg%s*", ""):gsub("^%?", ""):gsub(one, "")
-			local sendername = getPlayerdata("name", true, user_peer_id)
-			local toname =	getPlayerdata("name", true, one)
-			sendannounce("[Msg] From ->"..sendername, message, one)
-			sendannounce("[Msg] To ->"..toname, message, user_peer_id)
+			if server.getPlayerName(one) ~= "" then
+				local message = full_message:gsub("^%?msg%s*", ""):gsub("^%?", ""):gsub(one, "")
+				local sendername = getPlayerdata("name", true, user_peer_id)
+				local toname =	getPlayerdata("name", true, one)
+				sendannounce("[Msg] From ->"..sendername, message, one)
+				sendannounce("[Msg] To ->"..toname, message, user_peer_id)
+			else
+				server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
+			end
 		else
 			sendannounce("[Msg]", "Please input a peer id to send to", user_peer_id)
 		end
@@ -1369,10 +1510,11 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- displays script version and other info
 	if (command:lower() == "?ver") or (command:lower() == "?version") then
 		commandfound = true
-		sendannounce("[AusCode]", "|AusCode version: "..scriptversion, user_peer_id)
+		local m = "|AusCode version: "..scriptversion
 		if perms >= PermMod then
-			sendannounce("[AusCode]", "|Script info: ".."\n|Playerdatasave: "..tostring(playerdatasave).."\n|Customchat: "..tostring(customchat).."\n|Despawnonreload: "..tostring(despawnonreload).."\n|Playermaxvehicles: "..tostring(playermaxvehicles).."\n|Subbodylimiting: "..tostring(subbodylimiting).."\n|Maxsubbodys: "..tostring(maxsubbodys).."\n|Voxellimiting: "..tostring(voxellimiting).."\n|Voxellimit: "..voxellimit.."\n|Warnthreashold: "..tostring(warnactionthreashold).."\n|Warnaction: "..tostring(warnaction).."\n|Showcommandsinchat: "..tostring(showcommandsinchat).."\n|Disablecommandsnotification: "..tostring(disablecommandsnotification).."\n|Despawndropeditems: "..tostring(despawndropeditems).."\n|Despawndropeditemsdelay: "..tostring(despawndropeditemsdelay).."\n|Allownicknames: "..tostring(allownicknames).."\n|Enableplaytime: "..tostring(enableplaytime).."\n|Playtimeupdatefrequency: "..tostring(playtimeupdatefrequency).."\n|Uptime: "..ut, user_peer_id)
+			m=m.."\n|Script settings: \n|CustomChat: "..tostring(customchat).."\n|PvpEffects: "..tostring(pvpeffects).."\n|DespawnOnReload: "..tostring(despawnonreload).."\n|PlayerMaxVehicles: "..tostring(playermaxvehicles).."\n|SubbodyLimiting: "..tostring(subbodylimiting).."\n|MaxSubbodys: "..tostring(maxsubbodys).."\n|VoxelLimiting: "..tostring(voxellimiting).."\n|VoxelLimit: "..voxellimit.."\n|WarnThreashold: "..tostring(warnactionthreashold).."\n|WarnAction: "..tostring(warnaction).."\n|ShowCommandsInChat: "..tostring(showcommandsinchat).."\n|DespawnDropedItems: "..tostring(despawndropeditems).."\n|DespawnDropedItemsDelay: "..tostring(despawndropeditemsdelay).."\n|AllowNicknames: "..tostring(allownicknames).."\n|Playtime: "..tostring(enableplaytime).."\n|PlaytimeUpdateFrequency: "..tostring(playtimeupdatefrequency).."\n|Backend: "..tostring(enablebackend).."\n|BackendPort: "..tostring(backendport).."\n|HeartbeatFrequency: "..tostring(heartbeatfrequency).."\n|ServerNumber: "..tostring(servernumber).."\n|Uptime: "..ut
 		end
+		sendannounce("[AusCode]", m, user_peer_id)
 	end
 
 	-- used to fix my silly mistakes with deleting parts of g_savedata...
@@ -1387,7 +1529,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?test") then
 		commandfound = true
 		if perms >= PermOwner then
-			getPlaytimeFromDB(getsteam_id(user_peer_id))
+			getPlaytime(getsteam_id(user_peer_id))
 		end
 	end
 
@@ -1400,7 +1542,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- temp rules command
 	if (command:lower() == "?rules") then
 		commandfound = true
-		sendannounce("[Server]", "-=RULES=-\n1.Common sense rules apply\n2.No flares / radiation / emp\n3.Move vehicles out of the hanger if there are other people trying to spawn things\n4.Staff can and will take action acording to their judgement\n5.Despawn your vehicles after use\n6.Dont be mean to others", user_peer_id)
+		sendannounce("[Server]", rules, user_peer_id)
 	end
 
 	-- explode player
@@ -1443,6 +1585,17 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			end
 		end
 	end
+
+	--die/respawn command
+	if (command:lower() == "?die") or (command:lower() == "?respawn") then
+		commandfound = true
+		if getPlayerdata("pvp", true, user_peer_id) then
+			local charId = server.getPlayerCharacterID(user_peer_id)
+			server.killCharacter(charId)
+		else
+			server.notify(user_peer_id, "[Server]", "You cannot use this command while pvp is disabled", 6)
+		end
+	end
 --endregion
 
 	-- checks if user has inputed a correct command
@@ -1454,37 +1607,21 @@ end
 
 --Misc functions
 -- tip messages
-function tipMessages()
-	local playercount = countitems(server.getPlayers()) - 1
+function updateTips()
+	if not tips then
+		return
+	end
+	local playercount = #playerlist
 	if playercount >= 1 then
 		tiptimer = tiptimer + 1
 		if tiptimer >= tipFrequency*60 then
-			if tipstep == 1 then
-				sendannounce("[Tip]", "use ?help to get a list of all the available commands")
-				tiptimer = 0
-			end
-			if tipstep == 2 then
-				sendannounce("[Tip]", "use ?auth if you dont have permision to use a workbench")
-				tiptimer = 0
-			end
-			if tipstep == 3 then
-				sendannounce("[Tip]", "we have a discord server. dont forget to join. "..discordlink.." or run the command ?disc")
-				tiptimer = 0
-			end
-			if tipstep == 4 then
-				sendannounce("[Tip]", "use ?as or ?antisteal to toggle your personal antisteal")
-				tiptimer = 0
-			end
-			if tipstep == 5 then
-				sendannounce("[Tip]", "use ?pvp to toggle your personal pvp")
-				tiptimer = 0
-			end
-			if tipstep == 6 then
-				sendannounce("[Tip]", "use ?ui to toggle your personal ui")
-				tiptimer = 0
+			sendannounce("[Tip]", tipmessages[tipstep])
+			if tipstep >= #tipmessages then
 				tipstep = 1
+			else
+				tipstep = tipstep + 1
 			end
-			tipstep = tipstep + 1
+			tiptimer = 0
 		end
 	end
 end
@@ -1498,7 +1635,7 @@ function onTick(game_ticks)
 	ut = formatUptime(uptimeTicks, tickDuration)
 	
 	-- calls functions
-	tipMessages()
+	updateTips()
 	updateTPS(game_ticks)
 	updateUI()
 	loopManager()
@@ -1673,16 +1810,41 @@ function updateUI()
 			local ut = formatUptime(uptimeTicks, tickDuration)
 			local TPS = string.format("%.0f",TPS)
 			for _,X in pairs(playerlist) do
-				local sid = getsteam_id(X.id)
+				local sid = X.steam_id
 				if sid ~= 0 then
 					local peer_id=X.id
 					local pvp = tostring(getPlayerdata("pvp", true, X.id)) or "unknown"
 					local pas = tostring(getPlayerdata("as", true, X.id)) or "unknown"
+
+					-- get the players vehicles
+					local vehicles = getPlayerdata("groups", true, X.id)
+					local vehiclestring = ""
+					local vspawned = 0
+					if vehicles ~= nil then
+						for _, GroupData in pairs(vehicles) do
+							if vspawned ~= 2 then
+								vspawned = vspawned + 1
+								if vehiclestring == "" then
+									vehiclestring = GroupData["group_id"]
+								else
+									vehiclestring = vehiclestring.."\n"..GroupData["group_id"]
+								end
+							end
+						end
+						if vspawned ~= 0 then
+							for i=1, 2-vspawned do
+								vehiclestring = vehiclestring.."\n"
+							end
+						else
+							vehiclestring = vehiclestring.."\n"
+						end
+					end
+
 					if enableplaytime then
 						local pt = formattime(getPlayerdata("pt", true, X.id)) or "unknown"
-						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Playtime=-\n"..pt.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.75)
+						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-\n"..ut.."\n-=Playtime=-\n"..pt.."\n-=Vehicles=-\n"..vehiclestring.."\n-=Antisteal=-\n"..pas.."\n-=PVP=-\n"..pvp.."\n-=TPS=-\n"..TPS, -0.905, 0.7)
 					else
-						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-".."\n"..ut.."\n-=Antisteal=-".."\n"..pas.."\n-=PVP=-".."\n"..pvp.."\n-=TPS=-".."\n"..TPS, -0.905, 0.8)
+						server.setPopupScreen(peer_id, 2, "ui", getPlayerdata("ui", true, X.id), "-=Uptime=-\n"..ut.."\n-=Antisteal=-\n"..pas.."\n-=PVP=-\n"..pvp.."\n-=TPS=-\n"..TPS, -0.905, 0.8)
 					end
 				end
 			end
@@ -1795,8 +1957,12 @@ function onCreate(is_world_create)
 		loop(playtimetodbfrequency,
 		function(id)
 			for _, player in pairs(playerlist) do
-				updatePlaytimeToDB(player.steam_id)
+				sendPlaytime(player.steam_id)
 			end
+		end)
+		loop(heartbeatfrequency,
+		function()
+			heartbeat()
 		end)
 	end
 end
