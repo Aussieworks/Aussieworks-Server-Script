@@ -201,7 +201,7 @@ from threading import Lock
 
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webhook_state.json")
 SERVERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "servers.json")
-WEBHOOK_URL = "https://discord.com/api/webhooks/1363114134803185734/mSJMZXySPxg5c6yKSM43OhGwJJsePA6C6ZpDrQttaWqxkUNYF0RhV7SWLwuSuETMZQu_"  # your webhook URL
+WEBHOOK_URL = ""  # your webhook URL
 
 def load_message_id():
     if os.path.exists(STATE_FILE):
