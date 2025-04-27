@@ -12,5 +12,5 @@ script stuff
 | Add spawned vehicles to UI | 🟢 |
 | Tps limiting | 🔴 |
 | Custom weather | 🟡 |
-| Make heartbeat http and backend for auto restarts | 🟢 |
+| add auto update to backend | 🔴 |
 | add checks to commands that can cause script crashes | 🟢 |
