@@ -1,7 +1,3 @@
-# Script
-
-script stuff
-
 ## Todo
 🟢 | Done
 <br/>🟡 | In Progress
