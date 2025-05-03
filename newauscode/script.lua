@@ -39,7 +39,7 @@ pvpeffects = true -- if player dies with pvp off they will get revived and heale
 subbodylimiting = true
 maxsubbodys = 15
 voxellimiting = true
-voxellimit = 25000
+voxellimit = 35000
 despawndropeditems = true
 despawndropeditemsdelay = 10
 limitingbypass = false
@@ -68,7 +68,7 @@ TIME = server.getTimeMillisec()
 TICKS = 0
 TPS = 0
 tickDuration = 1000
-scriptversion = "v1.7.0-Testing"
+scriptversion = "v1.7.1-Testing"
 
 
 
@@ -233,23 +233,24 @@ end
 
 -- player leave
 function onPlayerLeave(steam_id, name, peer_id, admin, auth)
-	sendannounce("[Server]", peer_id.." | "..name.." left the game")
-	local ownersteamid = getsteam_id(peer_id)
-	for group_id, GroupData in pairs(g_savedata["usercreations"]) do
-		if GroupData["ownersteamid"] == ownersteamid then
-			server.despawnVehicleGroup(group_id, true)
+	if server.getPlayerName(peer_id) ~= "" then
+		sendannounce("[Server]", peer_id.." | "..name.." left the game")
+		local ownersteamid = getsteam_id(peer_id)
+		for group_id, GroupData in pairs(g_savedata["usercreations"]) do
+			if GroupData["ownersteamid"] == ownersteamid then
+				server.despawnVehicleGroup(group_id, true)
+			end
 		end
-	end
-	setPlayerdata("groups", true, peer_id, {})
-	for i, player in pairs(playerlist) do
-		if player.id == peer_id then
-			if enableplaytime then
-				updatePlaytime()
+		for i, player in pairs(playerlist) do
+			if player.id == peer_id then
+				if enableplaytime then
+					updatePlaytime()
+				end
+				if enablebackend then
+					sendPlaytime(steam_id)
+				end
+				table.remove(playerlist, i)
 			end
-			if enablebackend then
-				sendPlaytime(steam_id)
-			end
-			table.remove(playerlist, i)
 		end
 	end
 end
@@ -556,7 +557,9 @@ function sendPlaytime(steam_id)
 	if not enablebackend then
 		return
 	end
-	server.httpGet(backendport, "/player/playtime/post?steam_id="..tostring(steam_id).."&playtime="..getPlayerdata("pt", false, steam_id))
+	if getPlayerdata("pt", false, steam_id) ~= 0 then
+		server.httpGet(backendport, "/player/playtime/post?steam_id="..tostring(steam_id).."&playtime="..getPlayerdata("pt", false, steam_id))
+	end
 end
 function getPlaytime(steam_id)
 	if not enablebackend then
@@ -799,7 +802,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?pi") then
 		commandfound = true
 		if one ~= nil then
-			if server.getPlayerName(one) == "" then
+			if type(getPlayerdata("name",true,one)) == "nil" then
 				server.notify(user_peer_id, "[Server]", "Player with the specified ID does not exist.", 6)
 			else
 				local sid = "Unknown"
@@ -1733,7 +1736,11 @@ function updatePVPEffects() --Made by: Sedrowow
 					end
 					-- Heal if damaged
 					if char_data.hp < 100 then
-						server.setCharacterData(object_id, 100, true, false)
+						if char_data.hp ~= 0 then
+							server.setCharacterData(object_id, 100, true, false)
+						else
+							server.reviveCharacter(object_id)
+						end
 					end
 				end
 			end
