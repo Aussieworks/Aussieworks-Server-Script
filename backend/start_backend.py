@@ -111,7 +111,7 @@ async def player_banned_post(steam_id: str):
         raise HTTPException(status_code=400, detail=str(e))
     
 @app.get("/player/unbanned/post")
-async def player_banned_post(steam_id: str):
+async def player_unbanned_post(steam_id: str):
     logger.debug(f"Received data request")
     try:
         (data, _) = Data.get_or_create(steam_id=steam_id)
