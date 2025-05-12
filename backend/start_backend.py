@@ -220,12 +220,6 @@ def load_servers():
     return []
 json_lock = Lock()  # Prevent simultaneous writes
 
-def load_servers():
-    if os.path.exists(SERVERS_FILE):
-        with open(SERVERS_FILE, "r") as f:
-            return json.load(f).get("servers", [])
-    return []
-
 def update_server_data(server_num: int, tps: str, player_count: str):
     server_states[server_num] = {
         "tps": tps,
