@@ -5,7 +5,7 @@
 ```
 py -m pip -r install <path/to/requirements.txt>
 ```
-3.Create the following directories
+3.Create the following folders
 ```
 c:\swds
 c:\swds\servers
@@ -13,17 +13,13 @@ c:\swds\servers\backend
 c:\swds\servers\server1
 c:\swds\servers\server2
 ```
-Each server folder should have a folder called
-```
-config_data
-```
-4.Copy server_config.xml to the server1 directory
+Each server folder should have a folder called `config_data` in it along with a copy of the stormworks game files<br/>
 
-5.Copy backend scripts to c:\swds\backend
+4.Copy server_config.xml to the config_data folder of each server
 
-6.Create servers.json<br/>
-	Write the following in a text editor and save as servers.json
-	The servers.json is stored in the backend directory.
+5.Copy backend scripts into c:\swds\backend
+
+6.Write the following in a text editor and save as `servers.json`. The `servers.json` is stored in the backend folder.
 ```
 {"servers": [{"number":<server number>,"name":"<name of server>"}]}
 ```
@@ -31,12 +27,12 @@ config_data
 ```
 {"servers": [{"number":1,"name":"test1"},{"number":2,"name":"test2"},{"number":3,"name":"test3"}]}
 ```
-7.Create webhooks<br/>
-	Create based on the knowledge presented by Discord.
-	https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks
+7.Create a webhook for the channel you would like the server status to be in based on the knowledge presented [here](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks) by Discord.<br/>
 
-8.Change the URL of the webhook in start_backend.py
+8.Change the URL of the webhook in start_backend.py to the one you just created.
 
-9.Install auscode into each server
+9.Copy the auscode mission into each servers mission folder
+>[!TIP]
+>Dont forget to add it into the server_config.xml
 
 10.Execute server_control.py and start_backend.py
