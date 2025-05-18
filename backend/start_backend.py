@@ -192,7 +192,7 @@ async def server_restart(server):
 
 
 # Discord bot related code
-from discord_webhook import DiscordWebhook, DiscordEmbed
+from discord_webhook import AsyncDiscordWebhook, DiscordEmbed
 
 import time
 import json
@@ -244,7 +244,7 @@ async def update_discord_webhook():
 
         if not message_id:
             logger.info("No existing message found. Creating new one.")
-            webhook = DiscordWebhook(url=WEBHOOK_URL, wait=True)
+            webhook = AsyncDiscordWebhook(url=WEBHOOK_URL, wait=True)
             embed = DiscordEmbed(title="Server Status", description="", color="008000")
             embed.set_footer(text="Initializing...")
             webhook.add_embed(embed)
@@ -276,7 +276,7 @@ async def update_discord_webhook():
             )
             embed.set_footer(text=f"Last Updated: {now}")
 
-            edit_webhook = DiscordWebhook(url=WEBHOOK_URL, id=message_id, wait=True)
+            edit_webhook = AsyncDiscordWebhook(url=WEBHOOK_URL, id=message_id, wait=True)
             edit_webhook.embeds = [embed]
             edit_webhook.edit()
 
