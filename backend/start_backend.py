@@ -248,7 +248,7 @@ async def update_discord_webhook():
             embed = DiscordEmbed(title="Server Status", description="", color="008000")
             embed.set_footer(text="Initializing...")
             webhook.add_embed(embed)
-            response = webhook.execute()
+            response = await webhook.execute()
             message_id = response.json()["id"]
             save_message_id(message_id)
         else:
@@ -278,7 +278,7 @@ async def update_discord_webhook():
 
             edit_webhook = AsyncDiscordWebhook(url=WEBHOOK_URL, id=message_id, wait=True)
             edit_webhook.embeds = [embed]
-            edit_webhook.edit()
+            await edit_webhook.edit()
 
             logger.info("Updated webhook with current server list")
 
