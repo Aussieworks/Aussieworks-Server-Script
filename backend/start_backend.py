@@ -22,8 +22,6 @@ async def lifespan(app: FastAPI):
     task1 = asyncio.create_task(update_discord_webhook())
     task2 = asyncio.create_task(purge_stale_servers())
     yield
-    task1.cancel()
-    task2.cancel()
 
 app = FastAPI(lifespan=lifespan)
 
