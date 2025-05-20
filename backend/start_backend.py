@@ -242,7 +242,7 @@ async def update_discord_webhook():
 
         if not message_id:
             logger.info("No existing message found. Creating new one.")
-            webhook = AsyncDiscordWebhook(url=WEBHOOK_URL, wait=True)
+            webhook = AsyncDiscordWebhook(url=WEBHOOK_URL, wait=True, timeout=60)
             embed = DiscordEmbed(title="Server Status", description="", color="008000")
             embed.set_footer(text="Initializing...")
             webhook.add_embed(embed)
@@ -274,12 +274,11 @@ async def update_discord_webhook():
             )
             embed.set_footer(text=f"Last Updated: {now}")
 
-            edit_webhook = AsyncDiscordWebhook(url=WEBHOOK_URL, id=message_id, wait=True)
+            edit_webhook = AsyncDiscordWebhook(url=WEBHOOK_URL, id=message_id, wait=True, timeout=60)
             edit_webhook.embeds = [embed]
             await edit_webhook.edit()
 
             logger.info("Updated webhook with current server list")
-
     except asyncio.CancelledError:
         logger.info("Webhook updater task was cancelled.")
     except Exception as e:
