@@ -36,7 +36,7 @@ customweatherevents = false
 customweatherfrequency = 60 -- in seconds
 forcepvp = false -- if true then pvp will be on by default and the ?pvp command will be dissabled
 pvpeffects = true -- if player dies with pvp off they will get revived and healed ect
-noworkshop = false -- if true then ws vehicles will be despawned.
+noworkshop = true -- if true then ws vehicles will be despawned.
 subbodylimiting = true
 maxsubbodys = 15
 voxellimiting = true
@@ -342,9 +342,13 @@ function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
 		local name = getPlayerdata("name", true, peer_id)
 		if noworkshop then
 			local vdata = server.getVehicleData(vehicle_id)
+			local sid = tostring(getsteam_id(peer_id))
 			local ws = true
+			if #vdata.authors == 0 then
+				ws = false
+			end
 			for _, author in pairs(vdata.authors) do
-				if author.steam_id == getPlayerdata("steam_id", true, peer_id) then
+				if tostring(author.steam_id) == sid then
 					ws = false
 				end
 			end
