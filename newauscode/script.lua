@@ -36,6 +36,7 @@ customweatherevents = false
 customweatherfrequency = 60 -- in seconds
 forcepvp = false -- if true then pvp will be on by default and the ?pvp command will be dissabled
 pvpeffects = true -- if player dies with pvp off they will get revived and healed ect
+noworkshop = false -- if true then ws vehicles will be despawned.
 subbodylimiting = true
 maxsubbodys = 15
 voxellimiting = true
@@ -338,6 +339,21 @@ end
 -- vehicle spawned
 function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
 	if peer_id ~= -1 then
+		local name = getPlayerdata("name", true, peer_id)
+		if noworkshop then
+			local vdata = server.getVehicleData(vehicle_id)
+			local ws = true
+			for _, author in pairs(vdata.authors) do
+				if author.steam_id == getPlayerdata("steam_id", true, peer_id) then
+					ws = false
+				end
+			end
+			if ws then
+				server.despawnVehicleGroup(group_id, true)
+				server.notify(peer_id, "[Server]", "You are not allowed to spawn workshop vehicles", 6)
+				return
+			end
+		end
 		local pvp = ""
 		if getPlayerdata("as", true, peer_id) == true then
 			server.setVehicleEditable(vehicle_id, false)
@@ -351,7 +367,6 @@ function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
 			server.setVehicleInvulnerable(vehicle_id, true)
 			pvp = "false"
 		end
-		local name = getPlayerdata("name", true, peer_id)
 		server.setVehicleTooltip(vehicle_id, "Owner: "..peer_id.." | "..name.."\nPVP: "..pvp.." | Group ID: "..group_id)
 		if peer_id ~= -1 and peer_id ~= nil then
 			if g_savedata["usercreations"][tostring(group_id)] == nil then
@@ -371,7 +386,6 @@ function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
 					if vehiclespawned > playermaxvehicles then
 						server.despawnVehicleGroup(group_id, true)
 						server.notify(peer_id, "[Server]", "You can only have "..playermaxvehicles.." vehicle spawned at a time", 6)
-
 					end
 				end
 			end
