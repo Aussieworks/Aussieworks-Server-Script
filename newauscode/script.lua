@@ -1528,6 +1528,19 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		end
 	end
 
+	-- send message in notify to all players
+	if (command:lower() == "?announce") or (command:lower() == "?a") then
+		if perms >= PermMod then
+			commandfound = true
+			local message = full_message:gsub("^%?announce%s*", ""):gsub("^%?", "")
+			if message ~= "" then
+				server.notify(-1, "[Announcement]", message, 7)
+			else
+				server.notify(user_peer_id, "[Server]", "Please input a message to announce", 6)
+			end
+		end
+	end
+
 	-- displays script version and other info
 	if (command:lower() == "?ver") or (command:lower() == "?version") then
 		commandfound = true
