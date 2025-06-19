@@ -1,5 +1,5 @@
 # Installation
-1. After downloading the [latest](https://github.com/Aussieworks/Aussieworks-Server-Script/releases) version of `auscode`, go into the zip file and copy the folder named `newauscode`.
+1. After downloading the [latest](https://github.com/Aussieworks/Aussieworks-Server-Script/releases) version of `auscode`, unzip the zip file and go into the folder and copy the folder named `newauscode`.
 2. Go to `%appdata%/Stormworks/data/missions` or where your server files are located and paste the `newauscode` folder.
 3. Go to your servers `server_config.xml` file and add `<path path="/rom/data/missions/newauscode"/>` into the playlist section.
 4. Go to the `script.lua` located in the `newauscode` folder and configure the addon.
