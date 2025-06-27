@@ -1410,7 +1410,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			sendannounce("[Server]", message, user_peer_id)
 		end
 	end
-	
+
 	-- ui command
 	if (command:lower() == "?ui") then
 		commandfound = true
@@ -1626,6 +1626,17 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 		if getPlayerdata("pvp", true, user_peer_id) then
 			local charId = server.getPlayerCharacterID(user_peer_id)
 			server.killCharacter(charId)
+		else
+			server.notify(user_peer_id, "[Server]", "You cannot use this command while pvp is disabled", 6)
+		end
+	end
+
+	-- heal command
+	if (command:lower() == "?heal") or (command:lower() == "?h") then
+		commandfound = true
+		if getPlayerdata("pvp", true, user_peer_id) then
+			local charId = server.getPlayerCharacterID(user_peer_id)
+			server.setCharacterData(charId, 100, false, false)
 		else
 			server.notify(user_peer_id, "[Server]", "You cannot use this command while pvp is disabled", 6)
 		end
