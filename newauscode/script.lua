@@ -29,7 +29,7 @@ playermaxvehicles = 1
 unlockislands = true
 playerdatasave = true
 despawnonreload = false
-customchat = false
+customchat = true
 showcommandsinchat = true
 disablecommandsnotification = false
 customweatherevents = false
@@ -43,6 +43,28 @@ voxellimiting = true
 voxellimit = 35000
 despawndropeditems = true
 despawndropeditemsdelay = 10
+--[[
+	Usage example:
+		defaultitems = {
+			[1] = {item=1, int=10, float=12}, -- gives item 1 with intger_value 10 and float_value
+			[2] = {item=2} -- you can also just give an item without any values and itll just give it the default values
+			[3] = {}, -- leave empty like so for nothing in that slot
+			...
+		}
+	Do not delete structure. only edit whats inside the {}
+]]
+defaultitems = {
+	[1] = {}, -- Large slot
+	[2] = {item=6},
+	[3] = {item=15,float=100},
+	[4] = {},
+	[5] = {},
+	[6] = {},
+	[7] = {},
+	[8] = {},
+	[9] = {},
+	[10] = {} -- Clothing slot
+}
 limitingbypass = false
 limitingbypassperm = PermOwner
 warnactionthreashold = 3
@@ -230,6 +252,7 @@ function onPlayerJoin(steam_id, name, peer_id, admin, auth)
 	sendChat = true
 	playerint(steam_id, peer_id)
 	sendJoin(steam_id)
+	givePlayerDefaultItems(peer_id)
 end
 
 -- player leave
@@ -1646,43 +1669,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	if (command:lower() == "?tool") then
 		commandfound = true
 		if one ~= nil then
-			local charId = server.getPlayerCharacterID(user_peer_id)
-			local existingtools = {}
-			for i = 1, 11 do
-				existingtools[i] = server.getCharacterItem(charId, i)
-			end
-
-			if not two and one ~= 0 then
-				local worked = false
-				for i=1, 9 do
-					if existingtools[i] == 0 and i ~= 1 then
-						worked = server.setCharacterItem(charId, i, one, false, 10, 100)
-						if worked then
-							break
-						end
-					end
-				end
-				if not worked then
-					if existingtools[1] == 0 then -- check if it can fit in the large slot
-						worked = server.setCharacterItem(charId, 1, one, false, 10, 10)
-					end
-					if not worked then
-						if existingtools[10] == 0 then -- check if its clothing
-							worked = server.setCharacterItem(charId, 10, one, false, 1, 100)
-						end
-					end
-					if not worked then
-						server.notify(user_peer_id, "[Server]", "You have no empty slots to put the selected item in", 6)
-					end
-				end
-			end
-
-			if two ~= nil then
-				local worked = server.setCharacterItem(charId, two, one, false, 10, 100)
-				if not worked then
-					server.notify(user_peer_id, "[Server]", "Selected item cannot go in that slot", 6)
-				end
-			end
+			givePlayerItem(user_peer_id, one, two)
 		else
 			server.notify(user_peer_id, "[Server]", "You need to specify a item number", 6)
 		end
@@ -1947,6 +1934,56 @@ function updateUI()
 		end
 		uitimer = uitimer + 1
 	end
+end
+
+function givePlayerItem(peer_id, item_id, slot, silent, int, float)
+	local charId = server.getPlayerCharacterID(peer_id)
+	local existingtools = {}
+	for i = 1, 11 do
+		existingtools[i] = server.getCharacterItem(charId, i)
+	end
+
+	if not slot and item_id ~= 0 then
+		local worked = false
+		for i=1, 9 do
+			if existingtools[i] == 0 and i ~= 1 then
+				worked = server.setCharacterItem(charId, i, item_id, false, int or 10, float or 100)
+				if worked then
+					break
+				end
+			end
+		end
+		if not worked then
+			if existingtools[1] == 0 then -- check if it can fit in the large slot
+				worked = server.setCharacterItem(charId, 1, item_id, false, int or 10, float or 10)
+			end
+			if not worked then
+				if existingtools[10] == 0 then -- check if its clothing
+					worked = server.setCharacterItem(charId, 10, item_id, false, int or 1, float or 100)
+				end
+			end
+			if not worked and not silent then
+				server.notify(peer_id, "[Server]", "You have no empty slots to put the selected item in", 6)
+			end
+		end
+	end
+
+	if slot ~= nil then
+		local worked = server.setCharacterItem(charId, slot, item_id, false, int or 10, float or 100)
+		if not worked and not silent then
+			server.notify(peer_id, "[Server]", "Selected item cannot go in that slot", 6)
+		end
+	end
+end
+
+function givePlayerDefaultItems(peer_id)
+	for slot, itemData in pairs(defaultitems) do
+		givePlayerItem(peer_id, (itemData and itemData["item"] or 0), slot, true, (itemData and itemData["int"] or nil), (itemData and itemData["float"] or nil))
+	end
+end
+
+function onPlayerRespawn(peer_id)
+	givePlayerDefaultItems(peer_id)
 end
 
 --region Loop Manager
