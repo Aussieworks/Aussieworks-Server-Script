@@ -29,7 +29,7 @@ playermaxvehicles = 1
 unlockislands = true
 playerdatasave = true
 despawnonreload = false
-customchat = true
+customchat = false
 showcommandsinchat = true
 disablecommandsnotification = false
 customweatherevents = false
@@ -1430,7 +1430,7 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 	-- lists all the commands
 	if (command:lower() == "?help") then
 		commandfound = true
-		sendannounce("[Server]", "-=General Commands=-\nFormating: [required] {optional}\n|?help\n|lists all commands\n|?auth\n|gives you auth\n|?c {group id}\n|clears your spawned vehicles or specified group\n|?disc\n|states our discord link\n|?ui {true/false}\n|toggles your ui\n|?ver\n|show script version and current settings to staff\n|?ut\n|shows you the uptime of the server\n|?as {true/false}\n|toggles your personal antisteal\n|?pvp {true/false}\n|toggles your pvp\n|?pvplist\n|lists all the players with pvp enabled\n|?repair\n|repairs all of your spawned vehicles\n|?tpv [group_id]\n|teleports you to vehicle group\n|?tvp [group_id] {peer_id}\n|teleports vehicle group to you or another player\n|?tpp [peer_id] {peer_id}\n|teleports you to a player or a player to a player\n|?nick [reset/set] {nickname}\n|sets nickname and removes it\n|?vi [group_id]\n|tells you info about inputed group_id\n|?ptlb\n|lists all players playtime in order\n|?rules\n|displays the server rules\n|?msg [peer_id] [message]\n|sends a private message to another player\n|?flip\n|flips your vehicles\n|?die\n|kills your character to respawn", user_peer_id)
+		sendannounce("[Server]", "-=General Commands=-\nFormating: [required] {optional}\n|?help\n|lists all commands\n|?auth\n|gives you auth\n|?c {group id}\n|clears your spawned vehicles or specified group\n|?disc\n|states our discord link\n|?ui {true/false}\n|toggles your ui\n|?ver\n|show script version and current settings to staff\n|?ut\n|shows you the uptime of the server\n|?as {true/false}\n|toggles your personal antisteal\n|?pvp {true/false}\n|toggles your pvp\n|?pvplist\n|lists all the players with pvp enabled\n|?repair\n|repairs all of your spawned vehicles\n|?tpv [group_id]\n|teleports you to vehicle group\n|?tvp [group_id] {peer_id}\n|teleports vehicle group to you or another player\n|?tpp [peer_id] {peer_id}\n|teleports you to a player or a player to a player\n|?nick [reset/set] {nickname}\n|sets nickname and removes it\n|?vi [group_id]\n|tells you info about inputed group_id\n|?ptlb\n|lists all players playtime in order\n|?rules\n|displays the server rules\n|?msg [peer_id] [message]\n|sends a private message to another player\n|?flip\n|flips your vehicles\n|?die\n|kills your character to respawn\n|?heal\n|heals your character\n|?tool [item_id] {slot}\n|gives you a tool or item in a slot", user_peer_id)
 		if perms >= PermMod then
 			sendannounce("[Server]", "-=Admin Commands=-\nFormating: [required] {optional}\n|?warn [peer_id] {reason}\n|warns selected player\n|?ca\n|clears all vehicles\n|?kick [peer id]\n|kicks player with inputed id\n|?pi {peer id}\n|lists players, if inputed tells about player\n|?pc [peer id]\n|clears vehicles of inputed players ids\n|?forceas [peer_id] {true/false}\n|forces antisteal state for inputed peer id\n|?forcepvp [peer_id] {true/false}\n|forces pvp state for inputed peer id\n|?clearchat\n|clears chat\n|?forceflip [peer_id]\n|flips vehicles of inputed peer id\n|?forcerepair [peer_id]\n|repairs vehicles of inputed peer id\n|?setmoney [amount]\n|sets the server's money\n|?w [fog] [rain] [wind]\n|sets weather conditions\n|?printchat\n|prints chat messages\n|?explodeplayer [peer_id] {power}\n|explodes the player with inputed peer id\n|?explode [group_id] {power}\n|explodes the vehicle group with inputed id", user_peer_id)
 		end
@@ -1639,6 +1639,52 @@ function onCustomCommand(full_message, user_peer_id, is_admin, is_auth, command,
 			server.setCharacterData(charId, 100, false, false)
 		else
 			server.notify(user_peer_id, "[Server]", "You cannot use this command while pvp is disabled", 6)
+		end
+	end
+
+	-- tool command
+	if (command:lower() == "?tool") then
+		commandfound = true
+		if one ~= nil then
+			local charId = server.getPlayerCharacterID(user_peer_id)
+			local existingtools = {}
+			for i = 1, 11 do
+				existingtools[i] = server.getCharacterItem(charId, i)
+			end
+
+			if not two and one ~= 0 then
+				local worked = false
+				for i=1, 9 do
+					if existingtools[i] == 0 and i ~= 1 then
+						worked = server.setCharacterItem(charId, i, one, false, 10, 100)
+						if worked then
+							break
+						end
+					end
+				end
+				if not worked then
+					if existingtools[1] == 0 then -- check if it can fit in the large slot
+						worked = server.setCharacterItem(charId, 1, one, false, 10, 10)
+					end
+					if not worked then
+						if existingtools[10] == 0 then -- check if its clothing
+							worked = server.setCharacterItem(charId, 10, one, false, 1, 100)
+						end
+					end
+					if not worked then
+						server.notify(user_peer_id, "[Server]", "You have no empty slots to put the selected item in", 6)
+					end
+				end
+			end
+
+			if two ~= nil then
+				local worked = server.setCharacterItem(charId, two, one, false, 10, 100)
+				if not worked then
+					server.notify(user_peer_id, "[Server]", "Selected item cannot go in that slot", 6)
+				end
+			end
+		else
+			server.notify(user_peer_id, "[Server]", "You need to specify a item number", 6)
 		end
 	end
 --endregion
