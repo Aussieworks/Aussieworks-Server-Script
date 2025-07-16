@@ -708,6 +708,7 @@ function togglePVP(peer_id, state, silently)
 			for vehicle_id, _ in pairs(GroupData["Vehicleparts"]) do
 				server.setVehicleTooltip(vehicle_id, "Owner: "..peer_id.." | "..name.."\nPVP: "..tostring(getPlayerdata("pvp", true, peer_id)).." | Group ID: "..group_id)
 				server.setVehicleInvulnerable(vehicle_id, not getPlayerdata("pvp", true, peer_id))
+                                server.setVehicleEditable(vehicle_id, not getPlayerdata("as", true, peer_id))
 			end
 		end
 	end
